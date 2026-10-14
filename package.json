@@ -1,0 +1,33 @@
+{
+  "name": "ratatoskr-obsidian-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Obsidian plugin that sends the changes of a vault to Ratatoskr through Edge.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "api:gen": "openapi-typescript openapi/openapi.json -o src/api/generated/schema.ts",
+    "api:check": "node scripts/check-api.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs"
+  },
+  "devDependencies": {
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.13",
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.13.3",
+    "esbuild": "0.28.2",
+    "eslint": "10.9.1",
+    "globals": "17.11.0",
+    "obsidian": "1.14.4",
+    "openapi-typescript": "7.13.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.68.0",
+    "vitest": "4.1.11"
+  }
+}

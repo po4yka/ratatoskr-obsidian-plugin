@@ -1,0 +1,36 @@
+# OS
+.DS_Store
+
+# Editors and IDEs
+.idea/
+.vscode/
+
+# Node dependencies
+node_modules/
+
+# TypeScript and lint caches
+*.tsbuildinfo
+.eslintcache
+
+# Build output: Obsidian loads `main.js` from the repository root, as in the sample plugin.
+main.js
+
+# Plugin data of a local test vault. The plugin never writes a credential into it, but the file
+# names local paths.
+data.json
+
+# Test and coverage output
+coverage/
+
+# Local environment and secrets
+.env
+.env.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Agent worktrees
+.worktrees/
+.omo/
+.omc/

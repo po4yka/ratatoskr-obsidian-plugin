@@ -1,0 +1,76 @@
+# The gate DEVELOPMENT.md documents, enforced. The command list here and the command list in
+# DEVELOPMENT.md are the same list; if they drift, DEVELOPMENT.md is wrong.
+#
+# `fleet.yml` fails closed on a manifest without this file, which is why this arrives in the same
+# change as `package.json` rather than after it.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly on main, so a date-dependent test or a runner change is caught without a push.
+  schedule:
+    - cron: "7 5 * * 1"
+
+# SECURITY.md: deny by default. The gate reads the tree and needs nothing else.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # On a pull request the newest push is the only one whose answer matters. On `main` a cancelled
+  # run leaves that commit with no verdict at all.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The gate reads the tree and pushes nothing, so the checkout credential is not kept.
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          # One version, from one place: `.nvmrc`.
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `ci` rather than `install`: it fails on a lockfile that disagrees with package.json instead
+      # of quietly rewriting it, which is the only reason to commit a lockfile at all.
+      - run: npm ci
+
+      - run: npm run api:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+      # The plugin bundle ships into the owner's vault, so the tree is the supply chain.
+      - name: Audit what ships in the bundle
+        run: npm audit --omit=dev --audit-level=high
+
+      # This file and DEVELOPMENT.md are one list by rule. `tests/gate-parity.test.ts` checks the
+      # same pair from inside the suite; this step answers before any test framework starts.
+      - name: The gate and DEVELOPMENT.md are one list
+        run: |
+          set -euo pipefail
+          in_ci=$(awk '
+            /^[[:space:]]+- run: npm run / { sub(/^[[:space:]]+- run: /, ""); print }
+          ' .github/workflows/ci.yml)
+          in_doc=$(awk '
+            /The gate runs these commands:/{f=1}
+            f&&/^npm /{print}
+            f&&/^```$/{exit}
+          ' DEVELOPMENT.md)
+          if [ "$in_ci" != "$in_doc" ]; then
+            echo "::error::ci.yml and DEVELOPMENT.md have drifted. DEVELOPMENT.md is the one that is wrong."
+            diff <(echo "$in_ci") <(echo "$in_doc") || true
+            exit 1
+          fi
+          echo "the two lists are identical:"
+          echo "$in_ci" | awk '{print "  " $0}'

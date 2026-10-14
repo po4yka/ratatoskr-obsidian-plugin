@@ -1,0 +1,12 @@
+## 1. Obsidian plugin (workspace OBS-023 group 11)
+
+- [x] 1.1 (11.1) Create the repository with the Obsidian sample plugin layout, TypeScript strict mode, the fleet `ci.yml` and the Edge client generated from the contracts. No test: scaffolding. Verify that the build and the lint run green.
+- [ ] 1.2 (11.2) RED: `tests/batcher.test.ts` "a rename arrives as one renamed change" feeds `rename` and `modify` events of the vault API into the batcher and asserts one `renamed` change with the old path. Confirm that it fails because the batcher does not exist (an empty shell that releases nothing, so the failure is an assertion).
+- [ ] 1.3 (11.3) GREEN: implement the batcher and the device sequence. Verify 1.2.
+- [ ] 1.4 (11.4) RED: `tests/batcher.test.ts` "a folder rename moves each file once" replays the recorded spike sequence and asserts exactly one `renamed` change per file and none for the folder; "an outside rename is paired by hash" replays `create` then `delete` 1 s apart with equal content hashes and asserts one `renamed` change; "a path is sent in NFC" asserts the NFC path. Confirm that they fail because the batcher forwards every event.
+- [ ] 1.5 (11.5) GREEN: skip folder `rename` events, pair `create` and `delete` with equal hashes within 3 seconds, and send NFC paths. Verify 1.4.
+- [ ] 1.6 (11.6) RED: `tests/credential.test.ts` "credential_never_written_to_data_json" pairs, connects and sends a batch in a test vault with a fake Edge, then reads every file under the vault folder and asserts that none contains the credential or the refresh token. Confirm that it fails because the default `saveData` path writes the credential into `data.json`.
+- [ ] 1.7 (11.7) GREEN: keep the credential in `app.secretStorage` on desktop, with `remote.safeStorage` as the fallback, and in memory only where neither exists. Verify 1.6.
+- [ ] 1.8 (11.8) RED: `tests/sync.test.ts` "a sync connection makes the plugin status-only" answers the connect request with `notes.connection.vault_already_connected` and `channel = sync`, and asserts that the plugin sends no batch. Confirm that it fails because the plugin retries the connect and then sends.
+- [ ] 1.9 (11.9) GREEN: implement pairing, connect, upload, batches, manifest reconciliation, the status-only mode, and the message for `notes.channel_mismatch` that points to Sync. Verify 1.8.
+- [ ] 1.10 (11.10) Write the README: pairing, where the credential is kept, what the plugin sends, and what Ratatoskr can read. No test: documentation.
