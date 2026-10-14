@@ -8,6 +8,8 @@ export interface DeviceCredential {
   readonly expires_at: string;
   readonly refresh_token: string;
   readonly refresh_expires_at: string;
+  /** The Edge origin at pairing. The plugin sends the credential to no other origin. */
+  readonly edge_origin: string;
 }
 
 /** `app.secretStorage` of Obsidian 1.11.4 and later. */

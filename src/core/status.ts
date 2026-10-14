@@ -4,6 +4,8 @@ import type { PluginState } from './state';
 export interface StatusFacts {
   readonly paired: boolean;
   readonly memoryOnly: boolean;
+  /** The saved Edge address is not the one that the device paired with. */
+  readonly originChanged: boolean;
   readonly state: PluginState;
   readonly error: string | null;
 }
@@ -33,6 +35,9 @@ function mainLine(facts: StatusFacts): string {
   }
   if (!facts.paired) {
     return 'Not paired. Enter a pairing code in the settings.';
+  }
+  if (facts.originChanged) {
+    return 'The Edge address changed after pairing. The plugin sends nothing to the new address. Pair again.';
   }
   if (state.connectionId === null) {
     return 'Paired. Connect the vault in the settings.';

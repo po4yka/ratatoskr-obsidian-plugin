@@ -27,6 +27,7 @@ async function start(edge: FakeEdge, files: Record<string, string> = {}): Promis
     vaultKey: '0cff636eba77cae6',
     vaultName: 'Test vault',
     deviceName: 'Test device',
+    edgeOrigin: () => 'https://edge.example',
     credentials: { secretStorage: new FakeSecretStorage() },
   });
   await core.pair('PAIR-0001');

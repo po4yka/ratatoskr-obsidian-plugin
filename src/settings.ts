@@ -17,22 +17,20 @@ export class RatatoskrSettingTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.createEl('p', { text: plugin.core?.status ?? 'Enter the Edge address of your Ratatoskr.' });
 
+    // The fields change a draft. Only Save applies it, so a half-typed address is never used.
+    const draft = { ...plugin.config };
     new Setting(containerEl)
       .setName('Edge address')
-      .setDesc('The HTTPS address of your Ratatoskr Edge.')
-      .addText((text) =>
-        text.setValue(plugin.config.edgeUrl).onChange(async (value) => {
-          plugin.config.edgeUrl = value.trim();
-          await plugin.saveSettings();
-        }),
-      );
+      .setDesc('The HTTPS address of your Ratatoskr Edge. A new address needs a new pairing.')
+      .addText((text) => text.setValue(draft.edgeUrl).onChange((value) => (draft.edgeUrl = value.trim())));
     new Setting(containerEl)
       .setName('Device name')
       .setDesc('The name that Ratatoskr shows for this device.')
-      .addText((text) =>
-        text.setValue(plugin.config.deviceName).onChange(async (value) => {
-          plugin.config.deviceName = value.trim();
-          await plugin.saveSettings();
+      .addText((text) => text.setValue(draft.deviceName).onChange((value) => (draft.deviceName = value.trim())))
+      .addButton((button) =>
+        button.setButtonText('Save').onClick(async () => {
+          await plugin.saveSettings(draft);
+          this.display();
         }),
       );
     new Setting(containerEl)

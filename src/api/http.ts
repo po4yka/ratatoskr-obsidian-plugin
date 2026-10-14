@@ -2,8 +2,12 @@ import type { components } from './generated/schema';
 
 export type ErrorEnvelope = components['schemas']['ErrorEnvelope'];
 
-/** One request to Edge. `path` starts with `/v1/`; the transport adds the Edge address. */
+/**
+ * One request to Edge. The transport sends it to `origin` + `path` and to no other address. For an
+ * authenticated request, `origin` is the Edge origin that issued the credential.
+ */
 export interface HttpRequest {
+  readonly origin: string;
   readonly method: 'POST' | 'PUT';
   readonly path: string;
   readonly headers: Readonly<Record<string, string>>;

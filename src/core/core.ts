@@ -21,6 +21,8 @@ export interface CoreOptions {
   readonly vaultName: string;
   readonly deviceName: string;
   readonly credentials: CredentialEnvironment;
+  /** The origin of the saved Edge address, `https://host[:port]`. It throws for an invalid one. */
+  readonly edgeOrigin: () => string;
 }
 
 /** The plugin without Obsidian: pairing, connect, manifest, uploads and change batches. */
@@ -37,7 +39,11 @@ export class RatatoskrCore {
   private constructor(options: CoreOptions, state: PluginState) {
     this.#options = options;
     this.#edge = new EdgeClient(options.transport);
-    this.#session = new DeviceSession({ edge: this.#edge, store: chooseCredentialStore(options.credentials) });
+    this.#session = new DeviceSession({
+      edge: this.#edge,
+      store: chooseCredentialStore(options.credentials),
+      currentOrigin: options.edgeOrigin,
+    });
     this.#state = state;
     this.#sequence = new DeviceSequence(state.nextSequence);
     const known = new Map(Object.entries(state.known));
@@ -50,7 +56,9 @@ export class RatatoskrCore {
 
   get status(): string {
     const memoryOnly = this.#session.storeKind === 'memory';
-    return statusText({ paired: this.#session.paired, memoryOnly, state: this.#state, error: this.#error });
+    const paired = this.#session.paired;
+    const originChanged = paired && !this.#session.originMatches;
+    return statusText({ paired, memoryOnly, originChanged, state: this.#state, error: this.#error });
   }
 
   /** Pairs as a new device. A connection of an earlier device is not used again. */
@@ -65,7 +73,7 @@ export class RatatoskrCore {
   async connect(): Promise<void> {
     const body = { channel: 'plugin', vault_key: this.#options.vaultKey, vault_display_name: this.#options.vaultName } as const;
     try {
-      const accepted = await this.#session.call((credential) => this.#edge.connect({ credential, body }));
+      const accepted = await this.#session.call((auth) => this.#edge.connect({ auth, body }));
       this.#adopt(accepted.connection_id);
     } catch (error) {
       if (!(error instanceof EdgeError) || error.code !== NOTES_CODES.vaultAlreadyConnected) {

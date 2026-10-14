@@ -1,6 +1,7 @@
 import { Notice, Plugin, requestUrl, TAbstractFile, TFolder, type App } from 'obsidian';
 import type { HttpResponse, Transport } from './api/http';
 import { RatatoskrCore } from './core/core';
+import { edgeOrigin } from './core/edge-address';
 import type { CredentialEnvironment, SafeStorageLike, SecretStorageLike } from './core/credentials';
 import { factsOfBytes } from './core/hash';
 import type { DataHost } from './core/state';
@@ -37,7 +38,14 @@ export default class RatatoskrPlugin extends Plugin {
     this.app.workspace.onLayoutReady(() => void this.#start());
   }
 
-  async saveSettings(): Promise<void> {
+  async saveSettings(settings: Settings): Promise<void> {
+    try {
+      edgeOrigin(settings.edgeUrl);
+    } catch (error) {
+      new Notice(`Ratatoskr: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
+    Object.assign(this.config, settings);
     this.#stored.settings = this.config;
     await this.saveData(this.#stored);
     await this.#start();
@@ -68,8 +76,9 @@ export default class RatatoskrPlugin extends Plugin {
     const config = this.config;
     this.core = await RatatoskrCore.open({
       host: this.#stateHost(),
-      // Both read the current settings, so a change in the settings tab applies at once.
-      transport: transportTo(() => config.edgeUrl),
+      transport: requestUrlTransport,
+      // The saved address only. The core sends no secret when its origin is not the paired one.
+      edgeOrigin: () => edgeOrigin(config.edgeUrl),
       get deviceName() {
         return config.deviceName;
       },
@@ -105,17 +114,13 @@ export default class RatatoskrPlugin extends Plugin {
   }
 }
 
-function transportTo(edgeUrl: () => string): Transport {
-  return async (request): Promise<HttpResponse> => {
-    const base = edgeUrl().replace(/\/+$/, '');
-    if (!/^https:\/\//.test(base)) {
-      throw new Error('the Edge address must start with https://');
-    }
-    const body = typeof request.body === 'string' || request.body === undefined ? request.body : request.body.slice().buffer;
-    const response = await requestUrl({ url: `${base}${request.path}`, method: request.method, headers: { ...request.headers }, ...(body === undefined ? {} : { body }), throw: false });
-    return { status: response.status, body: parseJson(response.text) };
-  };
-}
+/** Sends each request to its own origin, which the core sets; it never reads the settings. */
+const requestUrlTransport: Transport = async (request): Promise<HttpResponse> => {
+  const origin = edgeOrigin(request.origin);
+  const body = typeof request.body === 'string' || request.body === undefined ? request.body : request.body.slice().buffer;
+  const response = await requestUrl({ url: `${origin}${request.path}`, method: request.method, headers: { ...request.headers }, ...(body === undefined ? {} : { body }), throw: false });
+  return { status: response.status, body: parseJson(response.text) };
+};
 
 function parseJson(text: string): unknown {
   try {

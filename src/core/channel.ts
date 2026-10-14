@@ -1,4 +1,4 @@
-import type { EdgeClient } from '../api/edge';
+import type { Auth, EdgeClient } from '../api/edge';
 import { EdgeError } from '../api/http';
 import { NOTES_CODES, type ManifestEntry } from '../api/notes';
 import { factsOfBytes } from './hash';
@@ -130,8 +130,8 @@ export class Channel {
     }
   }
 
-  #call<T>(run: (edge: EdgeClient, call: { credential: string; connectionId: string }) => Promise<T>): Promise<T> {
+  #call<T>(run: (edge: EdgeClient, call: { auth: Auth; connectionId: string }) => Promise<T>): Promise<T> {
     const { edge, session, connectionId } = this.#parts;
-    return session.call((credential) => run(edge, { credential, connectionId }));
+    return session.call((auth) => run(edge, { auth, connectionId }));
   }
 }

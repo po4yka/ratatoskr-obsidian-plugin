@@ -61,6 +61,7 @@ async function pairConnectAndSend(environment: CredentialEnvironment): Promise<{
     vaultKey: '0cff636eba77cae6',
     vaultName: 'Test vault',
     deviceName: 'Test device',
+    edgeOrigin: () => 'https://edge.example',
     credentials: environment,
   };
   const core = await RatatoskrCore.open(options);
