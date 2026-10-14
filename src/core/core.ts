@@ -35,6 +35,8 @@ export class RatatoskrCore {
   readonly #batcher: Batcher;
   #channel: Channel | null = null;
   #error: string | null = null;
+  /** The events run one after the other, in the order that the vault reported them. */
+  #events: Promise<void> = Promise.resolve();
 
   private constructor(options: CoreOptions, state: PluginState) {
     this.#options = options;
@@ -103,14 +105,25 @@ export class RatatoskrCore {
     await this.#run(() => this.#reconcileIfNeeded());
   }
 
-  async accept(event: VaultEvent): Promise<void> {
-    if (this.#state.blocked === null) {
-      await this.#batcher.accept(event);
-    }
+  /** Queues one vault event behind the earlier ones. It never rejects. */
+  accept(event: VaultEvent): Promise<void> {
+    this.#events = this.#events.then(async () => {
+      if (this.#state.blocked !== null) {
+        return;
+      }
+      try {
+        await this.#batcher.accept(event);
+      } catch {
+        // The file is gone or cannot be read. Only a manifest can describe the vault now.
+        this.#state.needsManifest = true;
+      }
+    });
+    return this.#events;
   }
 
   /** Releases the ready changes and sends the outbox. `now` is the injected clock. */
   async flush(now: number): Promise<void> {
+    await this.#events;
     if (this.#state.blocked !== null) {
       return;
     }
