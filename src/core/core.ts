@@ -1,8 +1,9 @@
 import { EdgeClient } from '../api/edge';
-import { EdgeError, type Transport } from '../api/http';
-import { MAX_BATCH_CHANGES, NOTES_CODES } from '../api/notes';
+import type { Transport } from '../api/http';
+import { MAX_BATCH_CHANGES } from '../api/notes';
 import { Batcher, DeviceSequence } from './batcher';
 import { Channel, StaleBytesError } from './channel';
+import { connectVault, isConnectionGone, isMismatch } from './connect';
 import { chooseCredentialStore } from './credential-store';
 import type { CredentialEnvironment } from './credentials';
 import { DeviceSession } from './session';
@@ -91,28 +92,7 @@ export class RatatoskrCore {
 
   /** Connects the vault with `channel = plugin`, or becomes status-only when another channel has it. */
   async connect(): Promise<void> {
-    const body = { channel: 'plugin', vault_key: this.#options.vaultKey, vault_display_name: this.#options.vaultName } as const;
-    try {
-      const accepted = await this.#session.call((auth) => this.#edge.connect({ auth, body }));
-      this.#adopt(accepted.connection_id);
-    } catch (error) {
-      if (isMismatch(error)) {
-        this.#stop();
-        await this.#save();
-        return;
-      }
-      if (!(error instanceof EdgeError) || error.code !== NOTES_CODES.vaultAlreadyConnected) {
-        throw error;
-      }
-      const channel = error.envelope['channel'];
-      const existing = error.envelope['connection_id'];
-      if (channel === 'plugin' && typeof existing === 'string') {
-        // A plugin connection of this vault. The notes service refuses it if another device owns it.
-        this.#adopt(existing);
-      } else {
-        Object.assign(this.#state, { connectionId: null, blocked: channel === 'cli' ? 'cli' : 'sync', outbox: [] });
-      }
-    }
+    await this.#connectVault();
     await this.#save();
     await this.#run(() => this.#reconcileIfNeeded());
   }
@@ -141,12 +121,38 @@ export class RatatoskrCore {
     }
     this.#state.outbox.push(...this.#batcher.take(now));
     await this.#run(async () => {
-      await this.#reconcileIfNeeded();
-      await this.#sendOutbox();
+      try {
+        await this.#reconcileIfNeeded();
+        await this.#sendOutbox();
+      } catch (error) {
+        if (!isConnectionGone(error)) {
+          throw error;
+        }
+        // Notes failed the connection. Connect again once, and describe the vault with a manifest.
+        await this.#connectVault();
+        await this.#reconcileIfNeeded();
+        await this.#sendOutbox();
+      }
     });
   }
 
+  async #connectVault(): Promise<void> {
+    const body = { channel: 'plugin', vault_key: this.#options.vaultKey, vault_display_name: this.#options.vaultName } as const;
+    const connected = await connectVault({ edge: this.#edge, session: this.#session }, body);
+    if ('connectionId' in connected) {
+      this.#adopt(connected.connectionId);
+      return;
+    }
+    // Another device owns the connection (`channel_mismatch`), or another channel has the vault.
+    Object.assign(this.#state, { blocked: connected.blocked, outbox: [] }, connected.blocked === 'channel_mismatch' ? {} : { connectionId: null });
+  }
+
   #adopt(connectionId: string): void {
+    if (connectionId !== this.#state.connectionId) {
+      // Notes starts the device sequence of a new connection at 0.
+      this.#commit(0);
+      this.#sequence.resume(0);
+    }
     Object.assign(this.#state, { connectionId, blocked: null, needsManifest: true });
     this.#channel = null;
   }
@@ -238,7 +244,3 @@ export class RatatoskrCore {
 
 /** The transport of an app that cannot send safely. It sends nothing. */
 const refuseEveryRequest: Transport = () => Promise.reject(new Error('Update Obsidian. This version cannot send safely.'));
-
-function isMismatch(error: unknown): boolean {
-  return error instanceof EdgeError && error.code === NOTES_CODES.channelMismatch;
-}
