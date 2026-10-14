@@ -13,6 +13,15 @@ export const PAIRED = {
 } as const;
 
 export const CONNECTION_ID = '0199a1b2-0000-7000-8000-0000000c0001';
+export const UPLOAD_TOKEN = 'rst_0v8k4a2j9pm1d7n5tp3es6uabfhij1cm4nop5qrs';
+
+/** The route template of a path: the ids in it become `{id}`, `{token}` and `{index}`. */
+export function routeOf(path: string): string {
+  return path
+    .replace(/^\/v1\/notes\/connections\/[^/]+/, '/v1/notes/connections/{id}')
+    .replace(/\/blobs\/[^/]+/, '/blobs/{token}')
+    .replace(/\/chunks\/[^/]+$/, '/chunks/{index}');
+}
 
 type Route = (request: HttpRequest, body: Record<string, unknown>) => HttpResponse;
 
@@ -27,15 +36,36 @@ export class FakeEdge {
       status: 202,
       body: { connection_id: CONNECTION_ID, channel: 'plugin', state: 'connecting' },
     }));
-    this.routes.set(`POST /v1/notes/connections/${CONNECTION_ID}/changes`, (_request, body) => {
+    this.routes.set('POST /v1/notes/connections/{id}/changes', (_request, body) => {
       const changes = body['changes'] as Change[];
       return { status: 200, body: { committed_sequence: changes.at(-1)?.sequence ?? 0 } };
     });
+    this.routes.set('POST /v1/notes/connections/{id}/manifest', () => ({
+      status: 200,
+      body: { needed_sha256: [], committed_sequence: 0 },
+    }));
+    this.routes.set('POST /v1/notes/connections/{id}/blobs', (_request, body) => ({
+      status: 201,
+      body: { resumption_token: UPLOAD_TOKEN, chunk_size_bytes: body['chunk_size_bytes'], expires_at: '2026-10-14T13:00:00Z' },
+    }));
+    this.routes.set('PUT /v1/notes/connections/{id}/blobs/{token}/chunks/{index}', (request) => ({
+      status: 200,
+      body: { resumption_token: UPLOAD_TOKEN, chunk_index: Number(request.path.split('/').at(-1)), received_chunks_count: 1, idempotent_replay: false },
+    }));
+    this.routes.set('POST /v1/notes/connections/{id}/blobs/{token}/finalize', () => ({
+      status: 200,
+      body: { outcome: 'stored', blob_ref: {} },
+    }));
+  }
+
+  /** Answers one route with a fixed response. */
+  answer(route: string, response: HttpResponse): void {
+    this.routes.set(route, () => response);
   }
 
   readonly transport: Transport = async (request) => {
     this.requests.push(request);
-    const route = this.routes.get(`${request.method} ${request.path}`);
+    const route = this.routes.get(`${request.method} ${routeOf(request.path)}`);
     if (route === undefined) {
       return { status: 404, body: { code: 'edge.route_not_found', message: 'No route.', retryable: false } };
     }
@@ -52,5 +82,10 @@ export class FakeEdge {
 
   sent(path: string): HttpRequest[] {
     return this.requests.filter((request) => request.path === path);
+  }
+
+  /** The route of each request after the first `count`, in order: `POST /v1/...{id}/changes`. */
+  routesAfter(count: number): string[] {
+    return this.requests.slice(count).map((request) => `${request.method} ${routeOf(request.path)}`);
   }
 }
