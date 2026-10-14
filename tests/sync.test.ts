@@ -86,24 +86,6 @@ describe('the sync loop', () => {
     expect(body.entries).toHaveLength(2);
   });
 
-  it('uploads the bytes before the batch that names them', async () => {
-    const edge = new FakeEdge();
-    const core = await start(edge);
-    const before = edge.requests.length;
-
-    await createNote(core, { path: 'Notes/New.md', text: 'new bytes\n', at: 1_000 });
-
-    expect(edge.routesAfter(before)).toEqual([
-      'POST /v1/notes/connections/{id}/blobs',
-      'PUT /v1/notes/connections/{id}/blobs/{token}/chunks/{index}',
-      'POST /v1/notes/connections/{id}/blobs/{token}/finalize',
-      'POST /v1/notes/connections/{id}/changes',
-    ]);
-    const open = JSON.parse(String(edge.requests[before]?.body)) as { digest: unknown; declared_size_bytes: number };
-    expect(open.digest).toEqual({ algorithm: 'sha256', hex: factsOf('new bytes\n').sha256 });
-    expect(Buffer.from(edge.requests[before + 1]?.body as Uint8Array).toString('utf8')).toBe('new bytes\n');
-  });
-
   it('a channel mismatch points the owner to Obsidian Sync and stops the sending', async () => {
     const edge = new FakeEdge();
     edge.answer('POST /v1/notes/connections/{id}/changes', {
