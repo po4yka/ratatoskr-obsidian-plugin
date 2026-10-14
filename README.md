@@ -91,8 +91,8 @@ It sends:
 | `POST /v1/sessions/refresh`, `POST /v1/sessions/device` | The refresh token, or the device id and the device secret, when the session ends. |
 | `POST /v1/notes/connections` | The channel `plugin`, the vault id of Obsidian, and the vault name. |
 | `POST /v1/notes/connections/{id}/manifest` | The path, SHA-256 and length of each file in the vault. |
-| `/v1/notes/connections/{id}/blobs` | The bytes of a new or changed file, in chunks, before the change that names them. |
-| `POST /v1/notes/connections/{id}/changes` | Up to 256 changes. Each change has the path, the kind (`created`, `updated`, `renamed` with the old path, or `deleted`), the SHA-256 and length of the new bytes (not for `deleted`), and the device sequence. |
+| `/v1/notes/connections/{id}/blobs` | The bytes of a file, in chunks, only when Ratatoskr names their SHA-256 as missing. |
+| `POST /v1/notes/connections/{id}/changes` | Up to 256 changes. Each change has the path, the kind (`created`, `updated`, `renamed` with the path before the rename in `previous_path`, or `deleted`), the SHA-256 and length of the new bytes (not for `deleted`), and the device sequence. |
 
 How the plugin makes the changes:
 
@@ -106,6 +106,23 @@ How the plugin makes the changes:
 - The device sequence increases by one for each change. After a restart or a time offline, the
   plugin sends again from the last sequence that Ratatoskr committed.
 - When the plugin cannot prove that it saw each change, it sends a manifest again.
+
+How the plugin sends the bytes:
+
+- It sends a batch or a manifest first. Ratatoskr answers with the SHA-256 of the bytes that it
+  does not have (`notes.channel.bytes_missing` with `missing_sha256` for a batch, `needed_sha256`
+  for a manifest). The plugin uploads only those bytes, and then sends the batch or the manifest
+  again.
+- Ratatoskr needs no bytes for an empty file, a file over its size limit (64 MiB by default), or a
+  file whose first folder is `.obsidian` or `.trash` in any case. The plugin does not upload them.
+- When Ratatoskr refuses a batch as too large (`notes.channel.batch_too_large`), the plugin sends
+  the changes again in smaller batches, at most `max_changes` each.
+- When Ratatoskr failed the connection, for example because no manifest arrived within 30 minutes
+  of the connect (`notes.channel.manifest_missing`), the routes of the connection answer
+  `notes.connection.not_found`. The plugin then connects the vault again, sends a manifest to the
+  new connection, and starts the device sequence of that connection at 1. A connection that you
+  removed in Ratatoskr answers the same way, so the plugin connects the vault again while it is
+  enabled and paired. To stop the sending, select **Unpair** or disable the plugin.
 
 ## When the plugin sends nothing
 
@@ -128,7 +145,9 @@ How the plugin makes the changes:
 
 - Every file of the connected vault that the vault API lists: notes, attachments and other files.
   The plugin does not send the `.obsidian` configuration folder.
-- The path, the bytes, the SHA-256 and the length of each file, and each change after the connect.
+- The path, the SHA-256 and the length of each file, and each change after the connect.
+- The bytes of each file that Ratatoskr asks for. It does not ask for an empty file, a file over
+  its size limit, or a file under `.obsidian` or `.trash`.
 - The vault id and the vault name.
 
 Ratatoskr cannot read files outside the vault. It cannot read your Obsidian account, your Obsidian
