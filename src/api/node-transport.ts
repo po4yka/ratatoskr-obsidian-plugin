@@ -7,7 +7,14 @@ export interface NodeClients {
   readonly https: Pick<typeof Http, 'request'>;
 }
 
-const TIMEOUT_MS = 60_000;
+/** The limits of one request: the size of the answer body, the total time, and the time of silence. */
+export interface TransportLimits {
+  readonly maxBodyBytes: number;
+  readonly deadlineMs: number;
+  readonly idleMs: number;
+}
+
+export const TRANSPORT_LIMITS: TransportLimits = { maxBodyBytes: 8 * 1024 * 1024, deadlineMs: 60_000, idleMs: 60_000 };
 
 /** The Node clients of this runtime, or `undefined` where there is no Node (Obsidian mobile). */
 export function nodeClients(): NodeClients | undefined {
@@ -23,7 +30,7 @@ export function nodeClients(): NodeClients | undefined {
  * The Node client follows no redirect, so a 3xx answer comes back as it is and the Edge client
  * refuses it. Obsidian `requestUrl` cannot do this: it follows a redirect and does not report where.
  */
-export function nodeTransport(clients: NodeClients | undefined = nodeClients()): Transport {
+export function nodeTransport(clients: NodeClients | undefined = nodeClients(), limits: TransportLimits = TRANSPORT_LIMITS): Transport {
   if (clients === undefined) {
     throw new Error('this runtime has no Node HTTP client');
   }
@@ -42,7 +49,7 @@ export function nodeTransport(clients: NodeClients | undefined = nodeClients()):
         incoming.on('error', reject);
         incoming.on('end', () => resolve(answer(incoming.statusCode ?? 0, Buffer.concat(chunks).toString('utf8'))));
       });
-      outgoing.setTimeout(TIMEOUT_MS, () => outgoing.destroy(new Error('Edge did not answer in time')));
+      outgoing.setTimeout(limits.idleMs, () => outgoing.destroy(new Error('Edge did not answer in time')));
       outgoing.on('error', reject);
       outgoing.end(request.body);
     });
