@@ -14,6 +14,8 @@ Baseline:
   storage of the app profile. Where neither exists, they stay in memory only.
 - `data.json` holds no secret. It holds the Edge address, the connection id, the device sequence and
   the changes that are not committed yet.
-- The plugin talks only to the Edge address that the owner enters, over HTTPS.
+- The plugin talks only to the Edge address that the owner saves, over HTTPS. A request with a
+  credential goes only to the Edge origin of the pairing. On desktop, the plugin follows no
+  redirect.
 - The plugin has no remote code and no `eval`.
 - Logs and status text name no credential and no file content.
