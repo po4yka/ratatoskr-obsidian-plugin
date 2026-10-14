@@ -23,6 +23,7 @@ export interface Change {
   readonly kind: ChangeKind;
   readonly path: string;
   readonly old_path?: string;
+  readonly previous_path?: string;
   readonly sha256?: string;
   readonly length_bytes?: number;
 }

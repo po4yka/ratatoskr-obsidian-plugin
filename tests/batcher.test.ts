@@ -31,7 +31,7 @@ describe('the batcher', () => {
         sequence: 1,
         kind: 'renamed',
         path: 'RenameTargets/Shortest Renamed.md',
-        old_path: 'RenameTargets/Shortest.md',
+        previous_path: 'RenameTargets/Shortest.md',
         sha256: factsOf(target).sha256,
         length_bytes: factsOf(target).length,
       },
@@ -60,7 +60,7 @@ describe('the batcher', () => {
     const changes = batcher.take(await replay(batcher, events));
 
     const renamed = changes.filter((change) => change.kind === 'renamed');
-    expect(renamed.map((change) => [change.old_path, change.path])).toEqual([
+    expect(renamed.map((change) => [change.previous_path, change.path])).toEqual([
       ['Events/Folder3/One.md', 'Events/Folder3 Renamed/One.md'],
       ['Events/Folder3/Three.md', 'Events/Folder3 Renamed/Three.md'],
       ['Events/Folder3/Two.md', 'Events/Folder3 Renamed/Two.md'],
@@ -88,7 +88,7 @@ describe('the batcher', () => {
         sequence: 2,
         kind: 'renamed',
         path: 'Events/external-renamed.md',
-        old_path: 'Events/external.md',
+        previous_path: 'Events/external.md',
         sha256: factsOf(text).sha256,
         length_bytes: factsOf(text).length,
       },
