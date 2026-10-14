@@ -79,6 +79,11 @@ export class RatatoskrCore {
     await this.#save();
   }
 
+  /** Forgets the device credential and the connection of this device. */
+  async unpair(): Promise<void> {
+    // Empty in the RED step of task 11.23.
+  }
+
   /** Connects the vault with `channel = plugin`, or becomes status-only when another channel has it. */
   async connect(): Promise<void> {
     const body = { channel: 'plugin', vault_key: this.#options.vaultKey, vault_display_name: this.#options.vaultName } as const;
