@@ -2,9 +2,10 @@
 //
 // The pinned Edge contract (`openapi/openapi.json`) does not describe the notes routes yet, so these
 // shapes are written by hand from the workspace change `add-notes-vault-connections`: design D5, the
-// spec `notes-device-channels`, and the connect route of `ratatoskr-notes` (`services/notes/src/
-// api.rs`, `ConnectRequest` and `ConnectAccepted`). Replace them with generated types when the
-// contract carries the routes. The blob routes use the transfer shapes of the pinned contract.
+// spec `notes-device-channels`, and the routes of `ratatoskr-notes`: `services/notes/src/api/
+// connect.rs` (`ConnectRequest` and `ConnectAccepted`), `services/notes/src/channel.rs`
+// (`DeviceChange`) and its README section "Device channels". Replace them with generated types when
+// the contract carries the routes. The blob routes use the transfer shapes of the pinned contract.
 import type { Change } from '../core/types';
 
 /** `POST /v1/notes/connections`, channel `plugin`. The notes service refuses unknown fields. */
@@ -19,6 +20,17 @@ export interface ConnectAccepted {
   readonly connection_id: string;
   readonly channel: string;
   readonly state: string;
+  /** The connect operation (workspace design D10). Optional: the plugin does not need it to send. */
+  readonly operation?: ConnectOperation;
+}
+
+/** The operation of a connect, as the `202` answer names it. Its reports go to the web client. */
+export interface ConnectOperation {
+  readonly operation_id: string;
+  /** `notes.connection.connect`. */
+  readonly kind: string;
+  /** `ratatoskr-notes`. */
+  readonly lane: string;
 }
 
 /** `POST /v1/notes/connections/{id}/changes`: at most 256 changes, sequences without a gap. */

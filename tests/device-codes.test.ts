@@ -86,4 +86,20 @@ describe('the answers of the notes device channel', () => {
     expect(batches.map((request) => (JSON.parse(String(request.body)) as { changes: Change[] }).changes.map((change) => change.sequence))).toEqual([[1]]);
     expect(running.core.status).toMatch(/Up to date/);
   });
+
+  // Notes names the connect operation in its `202` answer (workspace design D10). The field is optional.
+  it.each([
+    { name: 'with', operation: { operation: { operation_id: '0199a1b2-0000-7000-8000-0000000e0001', kind: 'notes.connection.connect', lane: 'ratatoskr-notes' } } },
+    { name: 'without', operation: {} },
+  ])('the connect answer $name an operation is read', async ({ operation }) => {
+    const edge = new FakeEdge();
+    edge.answer('POST /v1/notes/connections', {
+      status: 202,
+      body: { connection_id: CONNECTION_ID, channel: 'plugin', state: 'connecting', ...operation },
+    });
+    running = await startPlugin(edge, { files: { 'Notes/First.md': '# First\n' } });
+
+    expect(edge.sent(`/v1/notes/connections/${CONNECTION_ID}/manifest`)).toHaveLength(1);
+    expect(running.core.status).toMatch(/Up to date/);
+  });
 });
