@@ -61,4 +61,6 @@ export const NOTES_CODES = {
   sequenceGap: 'notes.channel.sequence_gap',
   /** Carries `missing_sha256`. Nothing of the batch was committed. */
   bytesMissing: 'notes.channel.bytes_missing',
+  /** `413`, carries `max_changes`. Nothing of the batch was committed. */
+  batchTooLarge: 'notes.channel.batch_too_large',
 } as const;

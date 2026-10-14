@@ -1,6 +1,6 @@
 import type { Auth, EdgeClient } from '../api/edge';
 import { EdgeError } from '../api/http';
-import { NOTES_CODES, type ManifestEntry } from '../api/notes';
+import { MAX_BATCH_CHANGES, NOTES_CODES, type ManifestEntry } from '../api/notes';
 import { factsOfBytes } from './hash';
 import type { DeviceSession } from './session';
 import type { Change, FileFacts, VaultReader } from './types';
@@ -22,6 +22,9 @@ export type BatchOutcome =
   | { readonly kind: 'gap'; readonly committed: number }
   | { readonly kind: 'mismatch' };
 
+/** The answer to one request: a batch outcome, or `batch_too_large` with its `max_changes`. */
+type PartOutcome = BatchOutcome | { readonly kind: 'tooLarge'; readonly maxChanges: unknown };
+
 /** A file to upload: the path to read and the hash that its bytes must have. */
 interface Blob {
   readonly path: string;
@@ -33,6 +36,8 @@ const nfc = (path: string): string => path.normalize('NFC');
 /** The calls of one connection: manifest, uploads and change batches. */
 export class Channel {
   readonly #parts: { edge: EdgeClient; session: DeviceSession; vault: VaultReader; connectionId: string };
+  /** The most changes of one request. A `batch_too_large` answer lowers it. */
+  #limit = MAX_BATCH_CHANGES;
 
   constructor(parts: { edge: EdgeClient; session: DeviceSession; vault: VaultReader; connectionId: string }) {
     this.#parts = parts;
@@ -56,12 +61,31 @@ export class Channel {
     return { known, committed: answer.committed_sequence };
   }
 
-  /**
-   * Sends the batch. Notes names the bytes that it needs in a `bytes_missing` answer: an empty file,
-   * a file over its size limit and an excluded path need none. Those bytes are uploaded, and the
-   * batch is sent again once.
-   */
+  /** Sends the changes in order, in parts that notes takes. It stops at the first part that is not committed. */
   async send(changes: readonly Change[]): Promise<BatchOutcome> {
+    let outcome: BatchOutcome = { kind: 'committed', committed: 0 };
+    for (let start = 0; start < changes.length; ) {
+      const part = changes.slice(start, start + this.#limit);
+      const answer = await this.#sendPart(part);
+      if (answer.kind === 'tooLarge') {
+        this.#limit = smallerLimit(answer.maxChanges, part.length);
+        continue;
+      }
+      outcome = answer;
+      if (outcome.kind !== 'committed') {
+        return outcome;
+      }
+      start += part.length;
+    }
+    return outcome;
+  }
+
+  /**
+   * Sends one part. Notes names the bytes that it needs in a `bytes_missing` answer: an empty file,
+   * a file over its size limit and an excluded path need none. Those bytes are uploaded, and the
+   * part is sent again once.
+   */
+  async #sendPart(changes: readonly Change[]): Promise<PartOutcome> {
     const blobs = changes.flatMap((change) =>
       change.kind === 'deleted' || change.sha256 === undefined ? [] : [{ path: change.path, sha256: change.sha256 }],
     );
@@ -77,19 +101,16 @@ export class Channel {
     }
   }
 
-  async #batch(changes: readonly Change[]): Promise<BatchOutcome> {
+  async #batch(changes: readonly Change[]): Promise<PartOutcome> {
     try {
       const answer = await this.#call((edge, call) => edge.sendChanges({ ...call, body: { changes } }));
       return { kind: 'committed', committed: answer.committed_sequence };
     } catch (error) {
-      if (error instanceof EdgeError && error.code === NOTES_CODES.channelMismatch) {
-        return { kind: 'mismatch' };
+      const refused = error instanceof EdgeError ? refusal(error) : undefined;
+      if (refused === undefined) {
+        throw error;
       }
-      const committed = error instanceof EdgeError ? error.envelope['committed_sequence'] : undefined;
-      if (error instanceof EdgeError && error.code === NOTES_CODES.sequenceGap && typeof committed === 'number') {
-        return { kind: 'gap', committed };
-      }
-      throw error;
+      return refused;
     }
   }
 
@@ -139,4 +160,28 @@ export class Channel {
     const { edge, session, connectionId } = this.#parts;
     return session.call((auth) => run(edge, { auth, connectionId }));
   }
+}
+
+/** The outcome of a refused batch that the plugin acts on, or `undefined` for another answer. */
+function refusal(error: EdgeError): PartOutcome | undefined {
+  const committed = error.envelope['committed_sequence'];
+  switch (error.code) {
+    case NOTES_CODES.channelMismatch:
+      return { kind: 'mismatch' };
+    case NOTES_CODES.sequenceGap:
+      return typeof committed === 'number' ? { kind: 'gap', committed } : undefined;
+    case NOTES_CODES.batchTooLarge:
+      return { kind: 'tooLarge', maxChanges: error.envelope['max_changes'] };
+    default:
+      return undefined;
+  }
+}
+
+/** The limit after a `batch_too_large` answer to `sent` changes: `max_changes` when it is smaller, else half. */
+function smallerLimit(maxChanges: unknown, sent: number): number {
+  if (sent <= 1) {
+    throw new Error('the notes service refused a batch of one change as too large');
+  }
+  const usable = typeof maxChanges === 'number' && Number.isSafeInteger(maxChanges) && maxChanges >= 1 && maxChanges < sent;
+  return usable ? maxChanges : Math.floor(sent / 2);
 }
