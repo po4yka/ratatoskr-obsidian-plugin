@@ -1,5 +1,6 @@
 import { Notice, Plugin, requestUrl, TAbstractFile, TFolder, type App } from 'obsidian';
 import type { HttpResponse, Transport } from './api/http';
+import { nodeClients, nodeTransport } from './api/node-transport';
 import { RatatoskrCore } from './core/core';
 import { edgeOrigin } from './core/edge-address';
 import type { CredentialEnvironment, SafeStorageLike, SecretStorageLike } from './core/credentials';
@@ -76,7 +77,7 @@ export default class RatatoskrPlugin extends Plugin {
     const config = this.config;
     this.core = await RatatoskrCore.open({
       host: this.#stateHost(),
-      transport: requestUrlTransport,
+      transport: desktopOrMobileTransport(),
       // The saved address only. The core sends no secret when its origin is not the paired one.
       edgeOrigin: () => edgeOrigin(config.edgeUrl),
       get deviceName() {
@@ -112,6 +113,15 @@ export default class RatatoskrPlugin extends Plugin {
       },
     };
   }
+}
+
+/**
+ * The desktop app sends with the Node client, which follows no redirect. Obsidian mobile has no
+ * Node, so it uses `requestUrl`, which follows a redirect: see the README for this limit.
+ */
+function desktopOrMobileTransport(): Transport {
+  const clients = nodeClients();
+  return clients === undefined ? requestUrlTransport : nodeTransport(clients);
 }
 
 /** Sends each request to its own origin, which the core sets; it never reads the settings. */
