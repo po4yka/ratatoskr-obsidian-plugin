@@ -2,7 +2,8 @@ import { DEVICE_KIND, EdgeClient } from '../api/edge';
 import { EdgeError, type Transport } from '../api/http';
 import { MAX_BATCH_CHANGES } from '../api/notes';
 import { Batcher, DeviceSequence } from './batcher';
-import type { CredentialEnvironment } from './credentials';
+import { chooseCredentialStore, type CredentialStore } from './credential-store';
+import type { CredentialEnvironment, DeviceCredential } from './credentials';
 import { loadState, type DataHost, type PluginState } from './state';
 import type { FileFacts, VaultEvent } from './types';
 
@@ -33,9 +34,13 @@ export class RatatoskrCore {
   readonly #state: PluginState;
   readonly #sequence: DeviceSequence;
   readonly #batcher: Batcher;
+  readonly #store: CredentialStore;
+  #device: DeviceCredential | null;
 
   private constructor(options: CoreOptions, state: PluginState) {
     this.#options = options;
+    this.#store = chooseCredentialStore(options.credentials);
+    this.#device = this.#store.load();
     this.#edge = new EdgeClient(options.transport);
     this.#state = state;
     this.#sequence = new DeviceSequence(state.nextSequence);
@@ -51,7 +56,7 @@ export class RatatoskrCore {
   }
 
   get status(): string {
-    if (this.#state.device === null) {
+    if (this.#device === null) {
       return 'not paired';
     }
     return this.#state.connectionId === null ? 'paired' : 'connected';
@@ -59,8 +64,8 @@ export class RatatoskrCore {
 
   async pair(code: string): Promise<void> {
     const paired = await this.#edge.pair({ code, kind: DEVICE_KIND, display_name: this.#options.deviceName });
-    this.#state.device = paired;
-    await this.#save();
+    this.#device = paired;
+    this.#store.save(paired);
   }
 
   async connect(): Promise<void> {
@@ -100,10 +105,10 @@ export class RatatoskrCore {
   }
 
   #credential(): string {
-    if (this.#state.device === null) {
+    if (this.#device === null) {
       throw new Error('the plugin is not paired');
     }
-    return this.#state.device.credential;
+    return this.#device.credential;
   }
 
   async #save(): Promise<void> {
