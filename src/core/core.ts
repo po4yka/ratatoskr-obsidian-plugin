@@ -14,7 +14,8 @@ export type { VaultReader } from './types';
 
 export interface CoreOptions {
   readonly host: DataHost;
-  readonly transport: Transport;
+  /** `null`: this app cannot send safely (a desktop app without the Node clients). Nothing is sent. */
+  readonly transport: Transport | null;
   readonly vault: VaultReader;
   /** The vault id of Obsidian (`app.appId`) and the vault name. */
   readonly vaultKey: string;
@@ -40,7 +41,7 @@ export class RatatoskrCore {
 
   private constructor(options: CoreOptions, state: PluginState) {
     this.#options = options;
-    this.#edge = new EdgeClient(options.transport);
+    this.#edge = new EdgeClient(options.transport ?? refuseEveryRequest);
     this.#session = new DeviceSession({
       edge: this.#edge,
       store: chooseCredentialStore(options.credentials),
@@ -66,7 +67,8 @@ export class RatatoskrCore {
     const memoryOnly = this.#session.storeKind === 'memory';
     const paired = this.#session.paired;
     const originChanged = paired && !this.#session.originMatches;
-    return statusText({ paired, memoryOnly, originChanged, state: this.#state, error: this.#error });
+    const updateObsidian = this.#options.transport === null;
+    return statusText({ paired, memoryOnly, originChanged, updateObsidian, state: this.#state, error: this.#error });
   }
 
   /** Pairs as a new device. A connection of an earlier device is not used again. */
@@ -141,7 +143,7 @@ export class RatatoskrCore {
 
   #currentChannel(): Channel | null {
     const connectionId = this.#state.connectionId;
-    if (connectionId === null || !this.#session.paired) {
+    if (connectionId === null || !this.#session.paired || this.#options.transport === null) {
       return null;
     }
     this.#channel ??= new Channel({ edge: this.#edge, session: this.#session, vault: this.#options.vault, connectionId });
@@ -221,6 +223,9 @@ export class RatatoskrCore {
     await this.#options.host.saveData(this.#state);
   }
 }
+
+/** The transport of an app that cannot send safely. It sends nothing. */
+const refuseEveryRequest: Transport = () => Promise.reject(new Error('Update Obsidian. This version cannot send safely.'));
 
 function isMismatch(error: unknown): boolean {
   return error instanceof EdgeError && error.code === NOTES_CODES.channelMismatch;

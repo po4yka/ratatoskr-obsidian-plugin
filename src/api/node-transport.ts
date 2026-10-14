@@ -56,9 +56,18 @@ export interface Platform {
   readonly requestUrl: Transport;
 }
 
-/** The transport of the platform: the Node client, and `requestUrl` where there is none. */
-export function platformTransport(platform: Platform): Transport {
-  return platform.clients === undefined ? platform.requestUrl : nodeTransport(platform.clients);
+/**
+ * The transport of the platform, or `null` when the app cannot send safely.
+ *
+ * Obsidian mobile uses `requestUrl`, which follows a redirect and does not report where. A desktop app
+ * uses the Node client, which follows no redirect. A desktop app without `process.getBuiltinModule`
+ * (Node older than 20.16) gets no transport: it does not fall back to `requestUrl` or `window.require`.
+ */
+export function platformTransport(platform: Platform): Transport | null {
+  if (platform.isMobileApp) {
+    return platform.requestUrl;
+  }
+  return platform.clients === undefined ? null : nodeTransport(platform.clients);
 }
 
 function answer(status: number, text: string): HttpResponse {

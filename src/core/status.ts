@@ -6,6 +6,8 @@ export interface StatusFacts {
   readonly memoryOnly: boolean;
   /** The saved Edge address is not the one that the device paired with. */
   readonly originChanged: boolean;
+  /** A desktop app without the Node clients: the plugin sends nothing. */
+  readonly updateObsidian: boolean;
   readonly state: PluginState;
   readonly error: string | null;
 }
@@ -30,6 +32,9 @@ export function statusText(facts: StatusFacts): string {
 
 function mainLine(facts: StatusFacts): string {
   const { state } = facts;
+  if (facts.updateObsidian) {
+    return 'Update Obsidian: this version has no Node HTTP client, so the plugin sends nothing.';
+  }
   if (state.blocked !== null) {
     return BLOCKED[state.blocked];
   }
