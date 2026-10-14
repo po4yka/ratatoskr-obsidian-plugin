@@ -50,8 +50,14 @@ export class RatatoskrCore {
     this.#batcher = new Batcher({ facts: (path) => options.vault.facts(path), sequence: this.#sequence, known });
   }
 
+  /**
+   * Opens the core at each start. The vault can have changed while the plugin was disabled, and no
+   * event reports that, so a connected core sends a manifest before its next batch (design D5).
+   */
   static async open(options: CoreOptions): Promise<RatatoskrCore> {
-    return new RatatoskrCore(options, await loadState(options.host));
+    const state = await loadState(options.host);
+    state.needsManifest ||= state.connectionId !== null;
+    return new RatatoskrCore(options, state);
   }
 
   get status(): string {
@@ -76,6 +82,11 @@ export class RatatoskrCore {
       const accepted = await this.#session.call((auth) => this.#edge.connect({ auth, body }));
       this.#adopt(accepted.connection_id);
     } catch (error) {
+      if (isMismatch(error)) {
+        this.#stop();
+        await this.#save();
+        return;
+      }
       if (!(error instanceof EdgeError) || error.code !== NOTES_CODES.vaultAlreadyConnected) {
         throw error;
       }
@@ -135,7 +146,7 @@ export class RatatoskrCore {
     const changes = this.#state.outbox.slice(0, MAX_BATCH_CHANGES);
     const outcome = await channel.send(changes);
     if (outcome.kind === 'mismatch') {
-      Object.assign(this.#state, { blocked: 'channel_mismatch', outbox: [] });
+      this.#stop();
       return;
     }
     const waiting = this.#state.outbox.length;
@@ -163,6 +174,11 @@ export class RatatoskrCore {
     this.#state.needsManifest = false;
   }
 
+  /** `notes.channel_mismatch` on any route: another device owns the connection. Stop sending. */
+  #stop(): void {
+    Object.assign(this.#state, { blocked: 'channel_mismatch', outbox: [] });
+  }
+
   #commit(committed: number): void {
     this.#state.committedSequence = committed;
     this.#state.outbox = this.#state.outbox.filter((change) => change.sequence > committed);
@@ -177,6 +193,9 @@ export class RatatoskrCore {
       if (error instanceof StaleBytesError) {
         this.#state.needsManifest = true;
       }
+      if (isMismatch(error)) {
+        this.#stop();
+      }
       this.#error = error instanceof Error ? error.message : String(error);
     } finally {
       await this.#save();
@@ -188,4 +207,8 @@ export class RatatoskrCore {
     this.#state.known = Object.fromEntries(this.#batcher.known);
     await this.#options.host.saveData(this.#state);
   }
+}
+
+function isMismatch(error: unknown): boolean {
+  return error instanceof EdgeError && error.code === NOTES_CODES.channelMismatch;
 }

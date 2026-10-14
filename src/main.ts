@@ -101,7 +101,8 @@ export default class RatatoskrPlugin extends Plugin {
       this.registerEvent(this.app.vault.on(name as 'rename', forward(name)));
     }
     this.registerInterval(window.setInterval(() => void this.run((core) => core.flush(Date.now())), FLUSH_INTERVAL_MS));
-    this.refreshStatus();
+    // At each start, after the layout is ready: the core sends a manifest before anything else.
+    await this.run((core) => core.flush(Date.now()));
   }
 
   #stateHost(): DataHost {
