@@ -1,0 +1,112 @@
+{"t":1791888747879,"hr":11788.2,"phase":"goldens","action":"shortest-path-link","event":"vault.rename","type":"file","path":"RenameTargets/Shortest Renamed.md","pathEscaped":"RenameTargets/Shortest Renamed.md","pathIsNFC":true,"oldPath":"RenameTargets/Shortest.md","oldPathEscaped":"RenameTargets/Shortest.md"}
+{"t":1791888747880,"hr":11789.4,"phase":"goldens","action":"shortest-path-link","event":"metadataCache.resolved"}
+{"t":1791888747882,"hr":11791.1,"phase":"goldens","action":"shortest-path-link","event":"vault.modify","type":"file","path":"RenameSources/Uses Shortest.md","pathEscaped":"RenameSources/Uses Shortest.md","pathIsNFC":true}
+{"t":1791888747887,"hr":11796.6,"phase":"goldens","action":"shortest-path-link","event":"metadataCache.changed","type":"file","path":"RenameSources/Uses Shortest.md","pathEscaped":"RenameSources/Uses Shortest.md","pathIsNFC":true}
+{"t":1791888747888,"hr":11797.4,"phase":"goldens","action":"shortest-path-link","event":"metadataCache.resolved"}
+{"t":1791888748703,"hr":12611.9,"phase":"goldens","action":"aliased-link","event":"vault.rename","type":"file","path":"RenameTargets/Aliased Renamed.md","pathEscaped":"RenameTargets/Aliased Renamed.md","pathIsNFC":true,"oldPath":"RenameTargets/Aliased.md","oldPathEscaped":"RenameTargets/Aliased.md"}
+{"t":1791888748705,"hr":12613.9,"phase":"goldens","action":"aliased-link","event":"metadataCache.resolved"}
+{"t":1791888748708,"hr":12616.9,"phase":"goldens","action":"aliased-link","event":"vault.modify","type":"file","path":"RenameSources/Uses Aliased.md","pathEscaped":"RenameSources/Uses Aliased.md","pathIsNFC":true}
+{"t":1791888748712,"hr":12621.2,"phase":"goldens","action":"aliased-link","event":"metadataCache.changed","type":"file","path":"RenameSources/Uses Aliased.md","pathEscaped":"RenameSources/Uses Aliased.md","pathIsNFC":true}
+{"t":1791888748713,"hr":12622.5,"phase":"goldens","action":"aliased-link","event":"metadataCache.resolved"}
+{"t":1791888750345,"hr":14254.2,"phase":"goldens","action":"heading-link","event":"vault.rename","type":"file","path":"RenameTargets/Headed Renamed.md","pathEscaped":"RenameTargets/Headed Renamed.md","pathIsNFC":true,"oldPath":"RenameTargets/Headed.md","oldPathEscaped":"RenameTargets/Headed.md"}
+{"t":1791888750348,"hr":14257.4,"phase":"goldens","action":"heading-link","event":"metadataCache.resolved"}
+{"t":1791888750355,"hr":14264,"phase":"goldens","action":"heading-link","event":"vault.modify","type":"file","path":"RenameSources/Uses Headed.md","pathEscaped":"RenameSources/Uses Headed.md","pathIsNFC":true}
+{"t":1791888750361,"hr":14270.4,"phase":"goldens","action":"heading-link","event":"metadataCache.changed","type":"file","path":"RenameSources/Uses Headed.md","pathEscaped":"RenameSources/Uses Headed.md","pathIsNFC":true}
+{"t":1791888750362,"hr":14271.2,"phase":"goldens","action":"heading-link","event":"metadataCache.resolved"}
+{"t":1791888751353,"hr":15261.9,"phase":"goldens","action":"embed","event":"vault.rename","type":"file","path":"RenameTargets/Embedded Renamed.md","pathEscaped":"RenameTargets/Embedded Renamed.md","pathIsNFC":true,"oldPath":"RenameTargets/Embedded.md","oldPathEscaped":"RenameTargets/Embedded.md"}
+{"t":1791888751354,"hr":15263.5,"phase":"goldens","action":"embed","event":"metadataCache.resolved"}
+{"t":1791888751357,"hr":15265.7,"phase":"goldens","action":"embed","event":"vault.modify","type":"file","path":"RenameSources/Uses Embedded.md","pathEscaped":"RenameSources/Uses Embedded.md","pathIsNFC":true}
+{"t":1791888751363,"hr":15271.9,"phase":"goldens","action":"embed","event":"metadataCache.changed","type":"file","path":"RenameSources/Uses Embedded.md","pathEscaped":"RenameSources/Uses Embedded.md","pathIsNFC":true}
+{"t":1791888751365,"hr":15273.8,"phase":"goldens","action":"embed","event":"metadataCache.resolved"}
+{"t":1791888752352,"hr":16261.6,"phase":"goldens","action":"move-into-name-collision","event":"vault.create","type":"folder","path":"RenameTargets/Other","pathEscaped":"RenameTargets/Other","pathIsNFC":true}
+{"t":1791888752354,"hr":16263.6,"phase":"goldens","action":"move-into-name-collision","event":"vault.rename","type":"file","path":"RenameTargets/Other/Epsilon.md","pathEscaped":"RenameTargets/Other/Epsilon.md","pathIsNFC":true,"oldPath":"RenameTargets/Collide.md","oldPathEscaped":"RenameTargets/Collide.md"}
+{"t":1791888752356,"hr":16264.9,"phase":"goldens","action":"move-into-name-collision","event":"metadataCache.resolved"}
+{"t":1791888752358,"hr":16266.8,"phase":"goldens","action":"move-into-name-collision","event":"vault.modify","type":"file","path":"RenameSources/Uses Collide.md","pathEscaped":"RenameSources/Uses Collide.md","pathIsNFC":true}
+{"t":1791888752360,"hr":16269.2,"phase":"goldens","action":"move-into-name-collision","event":"metadataCache.changed","type":"file","path":"RenameSources/Uses Collide.md","pathEscaped":"RenameSources/Uses Collide.md","pathIsNFC":true}
+{"t":1791888752362,"hr":16271.5,"phase":"goldens","action":"move-into-name-collision","event":"metadataCache.resolved"}
+{"t":1791888753349,"phase":"events","action":"api:create","event":"ACTION_START"}
+{"t":1791888753352,"hr":17261,"phase":"events","action":"api:create","event":"vault.create","type":"file","path":"Events/new-note.md","pathEscaped":"Events/new-note.md","pathIsNFC":true}
+{"t":1791888753355,"hr":17263.9,"phase":"events","action":"api:create","event":"metadataCache.changed","type":"file","path":"Events/new-note.md","pathEscaped":"Events/new-note.md","pathIsNFC":true}
+{"t":1791888753356,"hr":17265,"phase":"events","action":"api:create","event":"metadataCache.resolved"}
+{"t":1791888755333,"phase":"events","action":"api:create","event":"ACTION_END","result":"Events/new-note.md"}
+{"t":1791888755335,"phase":"events","action":"api:modify","event":"ACTION_START"}
+{"t":1791888755337,"hr":19245.8,"phase":"events","action":"api:modify","event":"vault.modify","type":"file","path":"Events/new-note.md","pathEscaped":"Events/new-note.md","pathIsNFC":true}
+{"t":1791888755340,"hr":19249,"phase":"events","action":"api:modify","event":"metadataCache.changed","type":"file","path":"Events/new-note.md","pathEscaped":"Events/new-note.md","pathIsNFC":true}
+{"t":1791888755341,"hr":19250.2,"phase":"events","action":"api:modify","event":"metadataCache.resolved"}
+{"t":1791888757337,"phase":"events","action":"api:modify","event":"ACTION_END","result":null}
+{"t":1791888757338,"phase":"events","action":"api:rename","event":"ACTION_START"}
+{"t":1791888757341,"hr":21249.6,"phase":"events","action":"api:rename","event":"vault.rename","type":"file","path":"Events/renamed-note.md","pathEscaped":"Events/renamed-note.md","pathIsNFC":true,"oldPath":"Events/new-note.md","oldPathEscaped":"Events/new-note.md"}
+{"t":1791888757342,"hr":21250.9,"phase":"events","action":"api:rename","event":"metadataCache.resolved"}
+{"t":1791888759334,"phase":"events","action":"api:rename","event":"ACTION_END","result":"Events/renamed-note.md"}
+{"t":1791888759334,"phase":"events","action":"api:move","event":"ACTION_START"}
+{"t":1791888759337,"hr":23245.9,"phase":"events","action":"api:move","event":"vault.rename","type":"file","path":"Events/Sub/renamed-note.md","pathEscaped":"Events/Sub/renamed-note.md","pathIsNFC":true,"oldPath":"Events/renamed-note.md","oldPathEscaped":"Events/renamed-note.md"}
+{"t":1791888759338,"hr":23247.5,"phase":"events","action":"api:move","event":"metadataCache.resolved"}
+{"t":1791888761334,"phase":"events","action":"api:move","event":"ACTION_END","result":"Events/Sub/renamed-note.md"}
+{"t":1791888761334,"phase":"events","action":"api:rename-folder-3-notes","event":"ACTION_START"}
+{"t":1791888761338,"hr":25246.9,"phase":"events","action":"api:rename-folder-3-notes","event":"vault.rename","type":"folder","path":"Events/Folder3 Renamed","pathEscaped":"Events/Folder3 Renamed","pathIsNFC":true,"oldPath":"Events/Folder3","oldPathEscaped":"Events/Folder3"}
+{"t":1791888761339,"hr":25248.6,"phase":"events","action":"api:rename-folder-3-notes","event":"vault.rename","type":"file","path":"Events/Folder3 Renamed/One.md","pathEscaped":"Events/Folder3 Renamed/One.md","pathIsNFC":true,"oldPath":"Events/Folder3/One.md","oldPathEscaped":"Events/Folder3/One.md"}
+{"t":1791888761341,"hr":25250.1,"phase":"events","action":"api:rename-folder-3-notes","event":"vault.rename","type":"file","path":"Events/Folder3 Renamed/Three.md","pathEscaped":"Events/Folder3 Renamed/Three.md","pathIsNFC":true,"oldPath":"Events/Folder3/Three.md","oldPathEscaped":"Events/Folder3/Three.md"}
+{"t":1791888761342,"hr":25251.4,"phase":"events","action":"api:rename-folder-3-notes","event":"vault.rename","type":"file","path":"Events/Folder3 Renamed/Two.md","pathEscaped":"Events/Folder3 Renamed/Two.md","pathIsNFC":true,"oldPath":"Events/Folder3/Two.md","oldPathEscaped":"Events/Folder3/Two.md"}
+{"t":1791888761345,"hr":25254.1,"phase":"events","action":"api:rename-folder-3-notes","event":"vault.modify","type":"file","path":"Events/Linker.md","pathEscaped":"Events/Linker.md","pathIsNFC":true}
+{"t":1791888761348,"hr":25256.9,"phase":"events","action":"api:rename-folder-3-notes","event":"metadataCache.changed","type":"file","path":"Events/Linker.md","pathEscaped":"Events/Linker.md","pathIsNFC":true}
+{"t":1791888761445,"hr":25354,"phase":"events","action":"api:rename-folder-3-notes","event":"metadataCache.resolved"}
+{"t":1791888764332,"phase":"events","action":"api:rename-folder-3-notes","event":"ACTION_END","result":null}
+{"t":1791888764333,"phase":"events","action":"api:delete","event":"ACTION_START"}
+{"t":1791888764335,"hr":28244.2,"phase":"events","action":"api:delete","event":"metadataCache.deleted","type":"file","path":"Events/to-delete.md","pathEscaped":"Events/to-delete.md","pathIsNFC":true}
+{"t":1791888764336,"hr":28245.3,"phase":"events","action":"api:delete","event":"vault.delete","type":"file","path":"Events/to-delete.md","pathEscaped":"Events/to-delete.md","pathIsNFC":true}
+{"t":1791888764337,"hr":28246.1,"phase":"events","action":"api:delete","event":"metadataCache.resolved"}
+{"t":1791888766332,"phase":"events","action":"api:delete","event":"ACTION_END","result":null}
+{"t":1791888766333,"phase":"events","action":"api:trash-local","event":"ACTION_START"}
+{"t":1791888766336,"hr":30244.8,"phase":"events","action":"api:trash-local","event":"metadataCache.deleted","type":"file","path":"Events/to-trash.md","pathEscaped":"Events/to-trash.md","pathIsNFC":true}
+{"t":1791888766336,"hr":30245.3,"phase":"events","action":"api:trash-local","event":"vault.delete","type":"file","path":"Events/to-trash.md","pathEscaped":"Events/to-trash.md","pathIsNFC":true}
+{"t":1791888766338,"hr":30246.9,"phase":"events","action":"api:trash-local","event":"metadataCache.resolved"}
+{"t":1791888768333,"phase":"events","action":"api:trash-local","event":"ACTION_END","result":null}
+{"t":1791888768333,"phase":"events","action":"api:create-nfd","event":"ACTION_START"}
+{"t":1791888768339,"hr":32248.6,"phase":"events","action":"api:create-nfd","event":"vault.create","type":"file","path":"Events/Naïve Café.md","pathEscaped":"Events/Na\\u00efve Caf\\u00e9.md","pathIsNFC":true}
+{"t":1791888768344,"hr":32253.2,"phase":"events","action":"api:create-nfd","event":"metadataCache.changed","type":"file","path":"Events/Naïve Café.md","pathEscaped":"Events/Na\\u00efve Caf\\u00e9.md","pathIsNFC":true}
+{"t":1791888768345,"hr":32254,"phase":"events","action":"api:create-nfd","event":"metadataCache.resolved"}
+{"t":1791888770334,"phase":"events","action":"api:create-nfd","event":"ACTION_END","result":{"returnedPath":"Events/Na\\u00efve Caf\\u00e9.md","returnedIsNFC":true,"onDisk":["Na\\u00efve Caf\\u00e9.md"]}}
+{"t":1791888770334,"phase":"events","action":"fs:create","event":"ACTION_START"}
+{"t":1791888770342,"hr":34251.4,"phase":"events","action":"fs:create","event":"vault.create","type":"file","path":"Events/ext-new.md","pathEscaped":"Events/ext-new.md","pathIsNFC":true}
+{"t":1791888770344,"hr":34253.3,"phase":"events","action":"fs:create","event":"metadataCache.changed","type":"file","path":"Events/ext-new.md","pathEscaped":"Events/ext-new.md","pathIsNFC":true}
+{"t":1791888770345,"hr":34253.7,"phase":"events","action":"fs:create","event":"metadataCache.resolved"}
+{"t":1791888774332,"phase":"events","action":"fs:create","event":"ACTION_END","result":null}
+{"t":1791888774333,"phase":"events","action":"fs:modify","event":"ACTION_START"}
+{"t":1791888774345,"hr":38254.4,"phase":"events","action":"fs:modify","event":"vault.modify","type":"file","path":"Events/external.md","pathEscaped":"Events/external.md","pathIsNFC":true}
+{"t":1791888774351,"hr":38260,"phase":"events","action":"fs:modify","event":"metadataCache.changed","type":"file","path":"Events/external.md","pathEscaped":"Events/external.md","pathIsNFC":true}
+{"t":1791888774362,"hr":38271.5,"phase":"events","action":"fs:modify","event":"metadataCache.resolved"}
+{"t":1791888778333,"phase":"events","action":"fs:modify","event":"ACTION_END","result":null}
+{"t":1791888778334,"phase":"events","action":"fs:rename","event":"ACTION_START"}
+{"t":1791888778346,"hr":42255.3,"phase":"events","action":"fs:rename","event":"vault.create","type":"file","path":"Events/external-renamed.md","pathEscaped":"Events/external-renamed.md","pathIsNFC":true}
+{"t":1791888778348,"hr":42256.6,"phase":"events","action":"fs:rename","event":"metadataCache.changed","type":"file","path":"Events/external-renamed.md","pathEscaped":"Events/external-renamed.md","pathIsNFC":true}
+{"t":1791888778348,"hr":42257.1,"phase":"events","action":"fs:rename","event":"metadataCache.resolved"}
+{"t":1791888779333,"hr":43242.4,"phase":"events","action":"fs:rename","event":"metadataCache.deleted","type":"file","path":"Events/external.md","pathEscaped":"Events/external.md","pathIsNFC":true}
+{"t":1791888779334,"hr":43243.1,"phase":"events","action":"fs:rename","event":"vault.delete","type":"file","path":"Events/external.md","pathEscaped":"Events/external.md","pathIsNFC":true}
+{"t":1791888779335,"hr":43243.8,"phase":"events","action":"fs:rename","event":"metadataCache.resolved"}
+{"t":1791888782333,"phase":"events","action":"fs:rename","event":"ACTION_END","result":null}
+{"t":1791888782333,"phase":"events","action":"fs:rename-folder-2-notes","event":"ACTION_START"}
+{"t":1791888782340,"hr":46249,"phase":"events","action":"fs:rename-folder-2-notes","event":"vault.create","type":"folder","path":"Events/ExtFolder Renamed","pathEscaped":"Events/ExtFolder Renamed","pathIsNFC":true}
+{"t":1791888782341,"hr":46250,"phase":"events","action":"fs:rename-folder-2-notes","event":"vault.create","type":"file","path":"Events/ExtFolder Renamed/x.md","pathEscaped":"Events/ExtFolder Renamed/x.md","pathIsNFC":true}
+{"t":1791888782342,"hr":46250.7,"phase":"events","action":"fs:rename-folder-2-notes","event":"metadataCache.resolved"}
+{"t":1791888782342,"hr":46251.5,"phase":"events","action":"fs:rename-folder-2-notes","event":"vault.create","type":"file","path":"Events/ExtFolder Renamed/y.md","pathEscaped":"Events/ExtFolder Renamed/y.md","pathIsNFC":true}
+{"t":1791888782345,"hr":46254.3,"phase":"events","action":"fs:rename-folder-2-notes","event":"metadataCache.changed","type":"file","path":"Events/ExtFolder Renamed/x.md","pathEscaped":"Events/ExtFolder Renamed/x.md","pathIsNFC":true}
+{"t":1791888782346,"hr":46254.8,"phase":"events","action":"fs:rename-folder-2-notes","event":"metadataCache.resolved"}
+{"t":1791888782349,"hr":46257.9,"phase":"events","action":"fs:rename-folder-2-notes","event":"metadataCache.changed","type":"file","path":"Events/ExtFolder Renamed/y.md","pathEscaped":"Events/ExtFolder Renamed/y.md","pathIsNFC":true}
+{"t":1791888782451,"hr":46359.6,"phase":"events","action":"fs:rename-folder-2-notes","event":"metadataCache.resolved"}
+{"t":1791888783334,"hr":47242.8,"phase":"events","action":"fs:rename-folder-2-notes","event":"metadataCache.deleted","type":"file","path":"Events/ExtFolder/x.md","pathEscaped":"Events/ExtFolder/x.md","pathIsNFC":true}
+{"t":1791888783334,"hr":47243.4,"phase":"events","action":"fs:rename-folder-2-notes","event":"vault.delete","type":"file","path":"Events/ExtFolder/x.md","pathEscaped":"Events/ExtFolder/x.md","pathIsNFC":true}
+{"t":1791888783335,"hr":47244.2,"phase":"events","action":"fs:rename-folder-2-notes","event":"metadataCache.deleted","type":"file","path":"Events/ExtFolder/y.md","pathEscaped":"Events/ExtFolder/y.md","pathIsNFC":true}
+{"t":1791888783336,"hr":47245.1,"phase":"events","action":"fs:rename-folder-2-notes","event":"vault.delete","type":"file","path":"Events/ExtFolder/y.md","pathEscaped":"Events/ExtFolder/y.md","pathIsNFC":true}
+{"t":1791888783337,"hr":47246.2,"phase":"events","action":"fs:rename-folder-2-notes","event":"vault.delete","type":"folder","path":"Events/ExtFolder","pathEscaped":"Events/ExtFolder","pathIsNFC":true}
+{"t":1791888783338,"hr":47247.1,"phase":"events","action":"fs:rename-folder-2-notes","event":"metadataCache.resolved"}
+{"t":1791888786333,"phase":"events","action":"fs:rename-folder-2-notes","event":"ACTION_END","result":null}
+{"t":1791888786334,"phase":"events","action":"fs:delete","event":"ACTION_START"}
+{"t":1791888787333,"hr":51242,"phase":"events","action":"fs:delete","event":"metadataCache.deleted","type":"file","path":"Events/ext-new.md","pathEscaped":"Events/ext-new.md","pathIsNFC":true}
+{"t":1791888787334,"hr":51242.8,"phase":"events","action":"fs:delete","event":"vault.delete","type":"file","path":"Events/ext-new.md","pathEscaped":"Events/ext-new.md","pathIsNFC":true}
+{"t":1791888787335,"hr":51244.1,"phase":"events","action":"fs:delete","event":"metadataCache.resolved"}
+{"t":1791888790333,"phase":"events","action":"fs:delete","event":"ACTION_END","result":null}
+{"t":1791888790334,"phase":"events","action":"fs:create-nfd","event":"ACTION_START"}
+{"t":1791888790345,"hr":54254.5,"phase":"events","action":"fs:create-nfd","event":"vault.create","type":"file","path":"Events/Résumé ext.md","pathEscaped":"Events/R\\u00e9sum\\u00e9 ext.md","pathIsNFC":true}
+{"t":1791888790348,"hr":54256.7,"phase":"events","action":"fs:create-nfd","event":"metadataCache.changed","type":"file","path":"Events/Résumé ext.md","pathEscaped":"Events/R\\u00e9sum\\u00e9 ext.md","pathIsNFC":true}
+{"t":1791888790348,"hr":54257.1,"phase":"events","action":"fs:create-nfd","event":"metadataCache.resolved"}
+{"t":1791888794332,"phase":"events","action":"fs:create-nfd","event":"ACTION_END","result":null}
