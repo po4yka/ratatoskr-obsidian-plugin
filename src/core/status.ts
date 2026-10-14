@@ -4,6 +4,8 @@ import type { PluginState } from './state';
 export interface StatusFacts {
   readonly paired: boolean;
   readonly memoryOnly: boolean;
+  /** The credential is from a build that did not keep the Edge origin of the pairing. */
+  readonly olderCredential: boolean;
   /** The saved Edge address is not the one that the device paired with. */
   readonly originChanged: boolean;
   /** A desktop app without the Node clients: the plugin sends nothing. */
@@ -40,6 +42,9 @@ function mainLine(facts: StatusFacts): string {
   }
   if (!facts.paired) {
     return 'Not paired. Enter a pairing code in the settings.';
+  }
+  if (facts.olderCredential) {
+    return 'The credential is from an older version of the plugin. A new pairing is needed: enter a pairing code in the settings.';
   }
   if (facts.originChanged) {
     return 'The Edge address changed after pairing. The plugin sends nothing to the new address. Pair again.';

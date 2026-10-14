@@ -44,6 +44,15 @@ export class RatatoskrSettingTab extends PluginSettingTab {
         }),
       );
     new Setting(containerEl)
+      .setName('Unpair')
+      .setDesc('Deletes the device credential from this app and forgets the connection. Pair again to send changes.')
+      .addButton((button) =>
+        button.setButtonText('Unpair').onClick(async () => {
+          await plugin.run((core) => core.unpair());
+          this.display();
+        }),
+      );
+    new Setting(containerEl)
       .setName('Connect this vault')
       .setDesc('Connects the vault through the plugin. A vault that uses Obsidian Sync gets status only.')
       .addButton((button) =>

@@ -40,6 +40,11 @@ export class DeviceSession {
     return this.#store.kind;
   }
 
+  /** The credential names the Edge origin of its pairing. A build before the origin binding saved none. */
+  get hasOrigin(): boolean {
+    return typeof this.#device?.edge_origin === 'string';
+  }
+
   /** The saved address has the origin of the pairing. A credential without one never matches. */
   get originMatches(): boolean {
     const device = this.#device;
@@ -74,7 +79,7 @@ export class DeviceSession {
     const device = this.#checked();
     try {
       const rotated = await this.#edge.refresh({ origin: device.edge_origin, refreshToken: device.refresh_token });
-      this.#keep({ ...device, ...rotated });
+      this.#keep(renewed(device, rotated));
     } catch (error) {
       if (!(error instanceof EdgeError)) {
         throw error;
@@ -82,7 +87,7 @@ export class DeviceSession {
       const checked = this.#checked();
       const body = { device_id: checked.device_id, device_secret: checked.device_secret };
       const opened = await this.#edge.openDeviceSession({ origin: checked.edge_origin, body });
-      this.#keep({ ...checked, ...opened });
+      this.#keep(renewed(checked, opened));
     }
   }
 
@@ -95,6 +100,9 @@ export class DeviceSession {
   #checked(): DeviceCredential {
     if (this.#device === null) {
       throw new Error('the plugin is not paired');
+    }
+    if (!this.hasOrigin) {
+      throw new Error('The credential is from an older version of the plugin. Pair again.');
     }
     if (!this.originMatches) {
       throw new OriginChangedError();
@@ -115,3 +123,11 @@ export class DeviceSession {
     this.#store.save(device);
   }
 }
+
+/** A renewal changes the session fields only: never the device, its secret or the Edge origin. */
+function renewed(device: DeviceCredential, answer: Pick<DeviceCredential, RenewedField>): DeviceCredential {
+  const { credential, expires_at, refresh_token, refresh_expires_at } = answer;
+  return { ...device, credential, expires_at, refresh_token, refresh_expires_at };
+}
+
+type RenewedField = 'credential' | 'expires_at' | 'refresh_token' | 'refresh_expires_at';

@@ -66,9 +66,10 @@ export class RatatoskrCore {
   get status(): string {
     const memoryOnly = this.#session.storeKind === 'memory';
     const paired = this.#session.paired;
-    const originChanged = paired && !this.#session.originMatches;
-    const updateObsidian = this.#options.transport === null;
-    return statusText({ paired, memoryOnly, originChanged, updateObsidian, state: this.#state, error: this.#error });
+    const olderCredential = paired && !this.#session.hasOrigin;
+    const originChanged = paired && !olderCredential && !this.#session.originMatches;
+    const facts = { paired, memoryOnly, olderCredential, originChanged, updateObsidian: this.#options.transport === null };
+    return statusText({ ...facts, state: this.#state, error: this.#error });
   }
 
   /** Pairs as a new device. A connection of an earlier device is not used again. */
@@ -81,7 +82,11 @@ export class RatatoskrCore {
 
   /** Forgets the device credential and the connection of this device. */
   async unpair(): Promise<void> {
-    // Empty in the RED step of task 11.23.
+    this.#session.forget();
+    Object.assign(this.#state, { connectionId: null, blocked: null, outbox: [], needsManifest: false });
+    this.#channel = null;
+    this.#error = null;
+    await this.#save();
   }
 
   /** Connects the vault with `channel = plugin`, or becomes status-only when another channel has it. */
