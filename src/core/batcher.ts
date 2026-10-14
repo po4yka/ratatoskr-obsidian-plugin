@@ -56,6 +56,7 @@ interface Slot {
 }
 
 const nfc = (path: string): string => path.normalize('NFC');
+const fileName = (path: string): string => path.slice(path.lastIndexOf('/') + 1);
 
 /** Turns vault events into ordered changes. The sequence number is given at release. */
 export class Batcher {
@@ -113,7 +114,7 @@ export class Batcher {
   }
 
   #created(created: { path: string; facts: FileFacts; at: number }): void {
-    const deleted = this.#partner({ kind: 'deleted', facts: created.facts, at: created.at });
+    const deleted = this.#partner({ kind: 'deleted', path: created.path, facts: created.facts, at: created.at });
     if (deleted === undefined) {
       this.#slots.push({ kind: 'created', ...created, open: true });
       return;
@@ -129,7 +130,7 @@ export class Batcher {
   #deleted(path: string, at: number): void {
     const facts = this.#known.get(path);
     this.#known.delete(path);
-    const created = facts === undefined ? undefined : this.#partner({ kind: 'created', facts, at });
+    const created = facts === undefined ? undefined : this.#partner({ kind: 'created', path, facts, at });
     if (created === undefined) {
       this.#slots.push({ kind: 'deleted', path, ...(facts === undefined ? {} : { facts }), at, open: true });
       return;
@@ -139,13 +140,15 @@ export class Batcher {
     created.open = false;
   }
 
-  #partner(wanted: { kind: ChangeKind; facts: FileFacts; at: number }): Slot | undefined {
+  #partner(wanted: { kind: ChangeKind; path: string; facts: FileFacts; at: number }): Slot | undefined {
     return this.#slots.find(
       (slot) =>
         slot.open &&
         slot.kind === wanted.kind &&
         slot.facts?.sha256 === wanted.facts.sha256 &&
-        wanted.at - slot.at <= PAIRING_WINDOW_MS,
+        wanted.at - slot.at <= PAIRING_WINDOW_MS &&
+        // All empty files have one hash, so an empty pair also needs the same file name.
+        (wanted.facts.length > 0 || fileName(slot.path) === fileName(wanted.path)),
     );
   }
 

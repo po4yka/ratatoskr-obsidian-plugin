@@ -17,6 +17,8 @@ export interface SecretStorageLike {
   setSecret(id: string, secret: string): void;
   getSecret(id: string): string | null;
   listSecrets(): string[];
+  /** Not in the typings of 1.14.4, but on the prototype (spike 3.5). */
+  deleteSecret?(id: string): void;
 }
 
 /** Electron `safeStorage`, reached through `@electron/remote` in the renderer. */

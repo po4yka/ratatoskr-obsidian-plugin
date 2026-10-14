@@ -43,7 +43,11 @@ class SecretStorageStore implements CredentialStore {
   }
 
   clear(): void {
-    this.storage.setSecret(CREDENTIAL_ID, '');
+    if (typeof this.storage.deleteSecret === 'function') {
+      this.storage.deleteSecret(CREDENTIAL_ID);
+    } else {
+      this.storage.setSecret(CREDENTIAL_ID, '');
+    }
   }
 }
 
