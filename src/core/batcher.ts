@@ -30,6 +30,11 @@ export class DeviceSequence {
     this.#next += 1;
     return sequence;
   }
+
+  /** Continues after `committed`, the highest sequence that the notes service committed. */
+  resume(committed: number): void {
+    this.#next = committed + 1;
+  }
 }
 
 export interface BatcherOptions {
@@ -66,6 +71,14 @@ export class Batcher {
   /** The facts of every file that the released and the held changes describe, by NFC path. */
   get known(): ReadonlyMap<string, FileFacts> {
     return this.#known;
+  }
+
+  /** Replaces the known facts, for example with the files of a manifest. */
+  replaceKnown(known: ReadonlyMap<string, FileFacts>): void {
+    this.#known.clear();
+    for (const [path, facts] of known) {
+      this.#known.set(path, facts);
+    }
   }
 
   async accept(event: VaultEvent): Promise<void> {

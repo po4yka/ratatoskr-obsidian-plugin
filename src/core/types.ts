@@ -26,3 +26,10 @@ export interface Change {
   readonly sha256?: string;
   readonly length_bytes?: number;
 }
+
+/** The vault API, as the core needs it. Paths are the paths that the vault API names. */
+export interface VaultReader {
+  facts(path: string): Promise<FileFacts>;
+  read(path: string): Promise<Uint8Array>;
+  list(): Promise<string[]>;
+}

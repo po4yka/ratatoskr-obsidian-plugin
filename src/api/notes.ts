@@ -4,7 +4,7 @@
 // shapes are written by hand from the workspace change `add-notes-vault-connections`: design D5, the
 // spec `notes-device-channels`, and the connect route of `ratatoskr-notes` (`services/notes/src/
 // api.rs`, `ConnectRequest` and `ConnectAccepted`). Replace them with generated types when the
-// contract carries the routes.
+// contract carries the routes. The blob routes use the transfer shapes of the pinned contract.
 import type { Change } from '../core/types';
 
 /** `POST /v1/notes/connections`, channel `plugin`. The notes service refuses unknown fields. */
@@ -31,4 +31,34 @@ export interface BatchCommitted {
   readonly committed_sequence: number;
 }
 
+/** One file of a manifest: the NFC path and the facts of its current bytes. */
+export interface ManifestEntry {
+  readonly path: string;
+  readonly sha256: string;
+  readonly length_bytes: number;
+}
+
+/** `POST /v1/notes/connections/{id}/manifest`: every file of the vault. */
+export interface Manifest {
+  readonly entries: readonly ManifestEntry[];
+}
+
+/** The hashes whose bytes the notes service needs before it can apply the manifest. */
+export interface ManifestAnswer {
+  readonly needed_sha256: readonly string[];
+  readonly committed_sequence?: number;
+}
+
 export const MAX_BATCH_CHANGES = 256;
+
+/** The error codes that the plugin acts on, and the envelope fields that they carry. */
+export const NOTES_CODES = {
+  /** Carries `connection_id` and `channel` (`sync`, `plugin` or `cli`). */
+  vaultAlreadyConnected: 'notes.connection.vault_already_connected',
+  /** A device of another kind, or a second device on a one-device connection. */
+  channelMismatch: 'notes.channel_mismatch',
+  /** Carries `committed_sequence`. Nothing of the batch was committed. */
+  sequenceGap: 'notes.channel.sequence_gap',
+  /** Carries `missing_sha256`. Nothing of the batch was committed. */
+  bytesMissing: 'notes.channel.bytes_missing',
+} as const;
