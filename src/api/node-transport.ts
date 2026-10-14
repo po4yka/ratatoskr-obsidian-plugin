@@ -14,7 +14,9 @@ export interface TransportLimits {
   readonly idleMs: number;
 }
 
-export const TRANSPORT_LIMITS: TransportLimits = { maxBodyBytes: 8 * 1024 * 1024, deadlineMs: 60_000, idleMs: 60_000 };
+const MIB = 1024 * 1024;
+
+export const TRANSPORT_LIMITS: TransportLimits = { maxBodyBytes: 8 * MIB, deadlineMs: 60_000, idleMs: 30_000 };
 
 /** The Node clients of this runtime, or `undefined` where there is no Node (Obsidian mobile). */
 export function nodeClients(): NodeClients | undefined {
@@ -45,12 +47,30 @@ export function nodeTransport(clients: NodeClients | undefined = nodeClients(), 
       const client = url.protocol === 'https:' ? clients.https : clients.http;
       const outgoing = client.request(url, { method: request.method, headers: { ...request.headers } }, (incoming) => {
         const chunks: Buffer[] = [];
-        incoming.on('data', (chunk: Buffer) => chunks.push(chunk));
-        incoming.on('error', reject);
-        incoming.on('end', () => resolve(answer(incoming.statusCode ?? 0, Buffer.concat(chunks).toString('utf8'))));
+        let size = 0;
+        incoming.on('data', (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > limits.maxBodyBytes) {
+            fail(new Error(`the answer of Edge is larger than ${limits.maxBodyBytes / MIB} MiB`));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        incoming.on('error', fail);
+        incoming.on('end', () => {
+          clearTimeout(deadline);
+          resolve(answer(incoming.statusCode ?? 0, Buffer.concat(chunks).toString('utf8')));
+        });
       });
-      outgoing.setTimeout(limits.idleMs, () => outgoing.destroy(new Error('Edge did not answer in time')));
-      outgoing.on('error', reject);
+      // The idle timeout stops a silent Edge; the deadline also stops one that sends a byte at a time.
+      const deadline = setTimeout(() => fail(new Error('Edge did not answer in time')), limits.deadlineMs);
+      function fail(error: Error): void {
+        clearTimeout(deadline);
+        reject(error);
+        outgoing.destroy();
+      }
+      outgoing.setTimeout(limits.idleMs, () => fail(new Error('Edge did not answer in time')));
+      outgoing.on('error', fail);
       outgoing.end(request.body);
     });
 }

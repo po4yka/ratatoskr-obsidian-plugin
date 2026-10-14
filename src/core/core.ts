@@ -143,7 +143,9 @@ export class RatatoskrCore {
 
   #currentChannel(): Channel | null {
     const connectionId = this.#state.connectionId;
-    if (connectionId === null || !this.#session.paired || this.#options.transport === null) {
+    // Checked before the reconcile lists and hashes the vault: a call that cannot be sent reads nothing.
+    const canSend = this.#options.transport !== null && this.#session.paired && this.#session.originMatches;
+    if (connectionId === null || !canSend) {
       return null;
     }
     this.#channel ??= new Channel({ edge: this.#edge, session: this.#session, vault: this.#options.vault, connectionId });
