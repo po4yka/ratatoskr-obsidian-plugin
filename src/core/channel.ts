@@ -8,6 +8,9 @@ import type { Change, FileFacts, VaultReader } from './types';
 /** The size that the plugin asks for. The answer of the open call decides the real size. */
 const CHUNK_BYTES = 1024 * 1024;
 
+/** The SHA-256 of no bytes. The transfer contract refuses 0 bytes, and notes stores this blob itself. */
+const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
 /** The bytes of a change are not on disk any more. Only a manifest can describe the vault now. */
 export class StaleBytesError extends Error {
   override readonly name = 'StaleBytesError';
@@ -30,7 +33,6 @@ const nfc = (path: string): string => path.normalize('NFC');
 /** The calls of one connection: manifest, uploads and change batches. */
 export class Channel {
   readonly #parts: { edge: EdgeClient; session: DeviceSession; vault: VaultReader; connectionId: string };
-  readonly #uploaded = new Set<string>();
 
   constructor(parts: { edge: EdgeClient; session: DeviceSession; vault: VaultReader; connectionId: string }) {
     this.#parts = parts;
@@ -54,12 +56,15 @@ export class Channel {
     return { known, committed: answer.committed_sequence };
   }
 
-  /** Uploads new bytes, then sends the batch. A `bytes_missing` answer uploads those and resends once. */
+  /**
+   * Sends the batch. Notes names the bytes that it needs in a `bytes_missing` answer: an empty file,
+   * a file over its size limit and an excluded path need none. Those bytes are uploaded, and the
+   * batch is sent again once.
+   */
   async send(changes: readonly Change[]): Promise<BatchOutcome> {
     const blobs = changes.flatMap((change) =>
       change.kind === 'deleted' || change.sha256 === undefined ? [] : [{ path: change.path, sha256: change.sha256 }],
     );
-    await this.#uploadHashes({ hashes: changes.filter((c) => c.kind === 'created' || c.kind === 'updated').map((c) => c.sha256 ?? ''), blobs });
     try {
       return await this.#batch(changes);
     } catch (error) {
@@ -67,7 +72,7 @@ export class Channel {
       if (!(error instanceof EdgeError) || error.code !== NOTES_CODES.bytesMissing || !Array.isArray(missing)) {
         throw error;
       }
-      await this.#uploadHashes({ hashes: missing.map(String), blobs, again: true });
+      await this.#uploadHashes({ hashes: missing.map(String), blobs });
       return this.#batch(changes);
     }
   }
@@ -88,9 +93,10 @@ export class Channel {
     }
   }
 
-  async #uploadHashes(request: { hashes: readonly string[]; blobs: readonly Blob[]; again?: boolean }): Promise<void> {
+  /** Uploads the bytes of each hash that notes named. */
+  async #uploadHashes(request: { hashes: readonly string[]; blobs: readonly Blob[] }): Promise<void> {
     for (const sha256 of new Set(request.hashes)) {
-      if (sha256 === '' || (this.#uploaded.has(sha256) && request.again !== true)) {
+      if (sha256 === EMPTY_SHA256) {
         continue;
       }
       const blob = request.blobs.find((candidate) => candidate.sha256 === sha256);
@@ -98,7 +104,6 @@ export class Channel {
         throw new StaleBytesError('the notes service needs bytes that no file of this batch has');
       }
       await this.#upload(blob);
-      this.#uploaded.add(sha256);
     }
   }
 

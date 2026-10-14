@@ -38,6 +38,8 @@ describe('the plugin stops for a channel mismatch on every route', () => {
 
   it('a channel mismatch on the upload route stops the plugin', async () => {
     const edge = new FakeEdge();
+    // Notes names the bytes of the new file, so the plugin opens an upload.
+    edge.keepNotesBytes();
     edge.answer('POST /v1/notes/connections/{id}/blobs', MISMATCH);
     running = await startPlugin(edge);
 
@@ -47,7 +49,8 @@ describe('the plugin stops for a channel mismatch on every route', () => {
 
     expect(running.core.status).toMatch(/another device/);
     expect(running.core.status).toMatch(/Obsidian Sync/);
-    expect(edge.batches).toEqual([]);
+    // Only the first batch, which notes refused with `bytes_missing`, reached Edge.
+    expect(edge.batches).toHaveLength(1);
     expect(edge.requests.length).toBe(requests);
   });
 });
