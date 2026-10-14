@@ -158,7 +158,7 @@ export class Batcher {
       sequence: this.#options.sequence.take(),
       kind: slot.kind,
       path: slot.path,
-      ...(slot.oldPath === undefined ? {} : { old_path: slot.oldPath }),
+      ...(slot.oldPath === undefined ? {} : { previous_path: slot.oldPath }),
       ...(facts === undefined ? {} : { sha256: facts.sha256, length_bytes: facts.length }),
     };
   }

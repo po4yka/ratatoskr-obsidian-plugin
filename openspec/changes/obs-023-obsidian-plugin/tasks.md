@@ -36,4 +36,4 @@
 `ratatoskr-notes` now serves the device channel routes. Its README section "Device channels" and `services/notes/src/channel.rs` define the wire format, and the plugin follows them.
 
 - [x] 4.1 (11.25) RED: `tests/batcher.test.ts` "a rename arrives as one renamed change", "a folder rename moves each file once" and "an outside rename is paired by hash" expect the path before a rename in `previous_path`, the field that `ratatoskr-notes` reads (`DeviceChange` refuses an unknown field). Confirm that they fail by assertion, because the batcher sends `old_path`.
-- [ ] 4.2 (11.26) GREEN: send `previous_path`, and remove `old_path` from the change type. The pinned Edge contract does not describe the notes routes, so `api:check` does not change. Verify 4.1.
+- [x] 4.2 (11.26) GREEN: send `previous_path`, and remove `old_path` from the change type. The pinned Edge contract does not describe the notes routes, so `api:check` does not change. Verify 4.1.
