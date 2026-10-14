@@ -48,6 +48,19 @@ export function nodeTransport(clients: NodeClients | undefined = nodeClients()):
     });
 }
 
+/** What the running app offers to send a request with. */
+export interface Platform {
+  /** Obsidian mobile. It has no Node, so `requestUrl` is its only transport. */
+  readonly isMobileApp: boolean;
+  readonly clients: NodeClients | undefined;
+  readonly requestUrl: Transport;
+}
+
+/** The transport of the platform: the Node client, and `requestUrl` where there is none. */
+export function platformTransport(platform: Platform): Transport {
+  return platform.clients === undefined ? platform.requestUrl : nodeTransport(platform.clients);
+}
+
 function answer(status: number, text: string): HttpResponse {
   // A redirect is not followed and its body is not read: the caller sees only the status.
   if (status >= 300 && status < 400) {
