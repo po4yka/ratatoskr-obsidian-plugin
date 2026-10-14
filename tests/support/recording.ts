@@ -27,3 +27,12 @@ export function recorded(action: string): VaultEvent[] {
       at: line.t,
     }));
 }
+
+/** The first event of a recorded action. A recording without one is a broken fixture. */
+export function first(events: readonly VaultEvent[]): VaultEvent {
+  const [event] = events;
+  if (event === undefined) {
+    throw new Error('the recording has no event for this action');
+  }
+  return event;
+}
