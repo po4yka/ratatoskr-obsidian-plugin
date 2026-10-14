@@ -20,7 +20,7 @@ export interface HttpResponse {
   readonly body: unknown;
 }
 
-/** The plugin uses Obsidian `requestUrl`; the tests use a fake Edge. */
+/** The Node client on desktop and Obsidian `requestUrl` on mobile (`platformTransport`); the tests use a fake Edge. */
 export type Transport = (request: HttpRequest) => Promise<HttpResponse>;
 
 /** An answer outside 2xx, with the contract error envelope when Edge sent one. */

@@ -1,0 +1,29 @@
+# gitleaks reads this file from the repository root. The default rules apply. The allowlists name
+# only values that are fake on purpose, so that a scan of this public repository reports a real
+# secret and nothing else. Add a new fake value of a test here, by its exact text.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The fake device credentials of the tests. No Edge issued them, and they open nothing."
+regexTarget = "match"
+regexes = [
+  # tests/support/fake-edge.ts: PAIRED and UPLOAD_TOKEN.
+  '''dsec_7Qm2vX9pL4wR8tY1zK6nB3cF5hJ0aE''',
+  '''cred_X3vN8qL1mP6sR9tW2yB5dF7hJ0kZ4c''',
+  '''rft_M9bV2cX7nL4kJ1hG8fD5sA3pO6iU0y''',
+  '''rst_0v8k4a2j9pm1d7n5tp3es6uabfhij1cm4nop5qrs''',
+  # tests/pinned-behaviour.test.ts: ROTATED.
+  '''cred_rotated_Q2w9E8r7T6y5''',
+  '''rft_rotated_Z1x2C3v4''',
+  # tests/session.test.ts: RENEWED and FOREIGN.
+  '''cred_renewed_H5j8K2l4M7n1''',
+  '''rft_renewed_P3q6R9s2T5u8''',
+  '''dsec_foreign_W4e7R1t3Y6u9''',
+]
+
+[[allowlists]]
+description = "The pre-commit hook of the fleet looks for a private key header. The pattern is not a key."
+targetRules = ["private-key"]
+paths = ['''^\.githooks/pre-commit$''']

@@ -15,7 +15,16 @@ Baseline:
 - `data.json` holds no secret. It holds the Edge address, the connection id, the device sequence and
   the changes that are not committed yet.
 - The plugin talks only to the Edge address that the owner saves, over HTTPS. A request with a
-  credential goes only to the Edge origin of the pairing. On desktop, the plugin follows no
-  redirect.
+  credential goes only to the Edge origin of the pairing.
+- On desktop, the plugin sends with the Node `http` and `https` clients, loaded through
+  `process.getBuiltinModule`. It follows no redirect, stops an answer body at 8 MiB, and stops a
+  request after 30 s without data or 60 s in total. A desktop app without
+  `process.getBuiltinModule` gets no transport: the plugin sends no request and asks the owner to
+  update Obsidian. It does not use `requestUrl` or `window.require` on desktop.
+- On mobile, the only transport is Obsidian `requestUrl`. It follows a redirect and does not report
+  the final address, so a redirect from the Edge address can send a credential to another address.
+  The plugin cannot refuse this on mobile.
+- A renewal changes only the session credential, the refresh token and their expiry times. **Unpair**
+  deletes the device credential from the app.
 - The plugin has no remote code and no `eval`.
 - Logs and status text name no credential and no file content.

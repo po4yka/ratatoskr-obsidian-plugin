@@ -37,7 +37,9 @@ The credential is bound to the origin of the Edge address at pairing. When you s
 address, the plugin sends nothing to it, and it does not send the credential, the refresh token or
 the device secret there. The status line asks you to pair again.
 
-To stop, remove the device in Ratatoskr, or turn off the plugin.
+To stop, select **Unpair** in the plugin settings. The plugin deletes the device credential from
+the app and forgets the connection. Then remove the device in Ratatoskr. To pause, turn off the
+plugin.
 
 ## Where the credential is kept
 
@@ -73,9 +75,15 @@ the credential. `data.json` keeps only these fields:
 ## What the plugin sends
 
 The plugin talks only to the Edge address that you saved, and only to the origin of the pairing
-for a request with a credential. On desktop, it follows no HTTP redirect: a redirect is refused,
-and nothing goes to the new address. On mobile, Obsidian `requestUrl` follows a redirect and does
-not report where, so the plugin cannot refuse it there. It sends:
+for a request with a credential. The transport is different on each platform:
+
+| Platform | Transport | Redirect | Limits |
+|---|---|---|---|
+| Desktop, with `process.getBuiltinModule` (Node 20.16 or later) | The Node `http` and `https` clients. | Not followed. A 3xx answer is refused, and nothing goes to the new address. | The answer body stops at 8 MiB. A request stops after 30 s without data, and after 60 s in total. |
+| Desktop, without `process.getBuiltinModule` | None. The plugin sends no request, the pairing included, and reads no file for a manifest. The status line asks you to update Obsidian. | Not applicable. | Not applicable. |
+| Mobile | Obsidian `requestUrl`, the only transport that the app has. | Followed. `requestUrl` does not report the final address, so the plugin cannot refuse a redirect, and a request with a credential goes to the address of the redirect. | The limits of `requestUrl`. |
+
+It sends:
 
 | Request | Content |
 |---|---|
@@ -110,6 +118,10 @@ How the plugin makes the changes:
   refuses it, and the plugin stops. The status line tells you to use Obsidian Sync to share a vault
   between devices.
 - **The Edge address changed after pairing.** Pair again.
+- **The credential is from an older version of the plugin.** That version did not keep the Edge
+  origin of the pairing. A new pairing is necessary.
+- **Update Obsidian.** On desktop, the app has no `process.getBuiltinModule`, so the plugin has no
+  transport that refuses a redirect. It sends nothing.
 - **The plugin is not paired or not connected.** The status bar tells you the next step.
 
 ## What Ratatoskr can read
