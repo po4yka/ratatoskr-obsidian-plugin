@@ -9,4 +9,4 @@
 - [x] 1.7 (11.7) GREEN: keep the credential in `app.secretStorage` on desktop, with `remote.safeStorage` as the fallback, and in memory only where neither exists. Verify 1.6.
 - [x] 1.8 (11.8) RED: `tests/sync.test.ts` "a sync connection makes the plugin status-only" answers the connect request with `notes.connection.vault_already_connected` and `channel = sync`, and asserts that the plugin sends no batch. Confirm that it fails because the plugin retries the connect and then sends.
 - [x] 1.9 (11.9) GREEN: implement pairing, connect, upload, batches, manifest reconciliation, the status-only mode, and the message for `notes.channel_mismatch` that points to Sync. Verify 1.8.
-- [ ] 1.10 (11.10) Write the README: pairing, where the credential is kept, what the plugin sends, and what Ratatoskr can read. No test: documentation.
+- [x] 1.10 (11.10) Write the README: pairing, where the credential is kept, what the plugin sends, and what Ratatoskr can read. No test: documentation.
