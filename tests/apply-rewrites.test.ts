@@ -70,9 +70,38 @@ describe('a rename with the link rewrites of its group', () => {
     await settle(core.flush(2_000));
 
     expect(obsidian.calls).toEqual([]);
-    expect(results(edge)).toEqual([{ operation: FIRST, body: { outcome: 'base_mismatch', local_sha256: sha('# A\n') } }]);
+    // Notes takes the local hash of each linking note from the list (ratatoskr-notes 7cdb2a2).
+    expect(results(edge)).toEqual([
+      {
+        operation: FIRST,
+        body: {
+          outcome: 'base_mismatch',
+          local_sha256: sha('# A\n'),
+          rewrites: [
+            { path: 'Daily/Today.md', outcome: 'base_mismatch', local_sha256: sha('See [[A]], edited here.\n') },
+            { path: 'Other/Ref.md', outcome: 'base_mismatch', local_sha256: sha('Also [[A]].\n') },
+          ],
+        },
+      },
+    ]);
     // The newer local note reaches notes, which raises the conflict.
     expect(edge.batches.flat()).toContainEqual(expect.objectContaining({ kind: 'updated', path: 'Daily/Today.md', sha256: sha('See [[A]], edited here.\n') }));
+  });
+
+  it('a linking note that is gone refuses the group and is named with a null hash', async () => {
+    const files = { 'A.md': '# A\n', 'Other/Ref.md': 'Also [[A]].\n' };
+
+    const { edge, obsidian } = await applyRename({ files, rename: renameWithRewrites() });
+
+    expect(obsidian.calls).toEqual([]);
+    expect(results(edge)[0]?.body).toEqual({
+      outcome: 'base_mismatch',
+      local_sha256: sha('# A\n'),
+      rewrites: [
+        { path: 'Daily/Today.md', outcome: 'base_mismatch', local_sha256: null },
+        { path: 'Other/Ref.md', outcome: 'base_mismatch', local_sha256: sha('Also [[A]].\n') },
+      ],
+    });
   });
 
   it('a linking note that Obsidian wrote another way is uploaded before the result', async () => {
