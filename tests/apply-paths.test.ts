@@ -9,11 +9,12 @@ import { settle } from './support/plugin';
 
 afterEach(removeVaults);
 
-/** One flush against a queue of one operation in a vault that holds `A.md`. */
+/** One flush against a queue of one operation in a vault that holds `A.md`, with its configuration in `.custom-config`. */
 async function applyOne(fields: Record<string, unknown>, contents: Record<string, string> = {}) {
   const edge = new FakeEdge();
   const queue = { pages: onePage(operation({ operation_id: FIRST, kind: 'update', path: 'A.md', ...fields })), contents };
   const { obsidian, core } = await startWithQueue(edge, { files: { 'A.md': 'alpha\n' }, queue });
+  obsidian.vault.configDir = '.custom-config';
   obsidian.lookups.length = 0;
   await settle(core.flush(1_000));
   return { edge, obsidian };
@@ -38,6 +39,19 @@ const UNSAFE: readonly (readonly [string, Record<string, unknown>])[] = [
   ['the configuration folder with a trailing dot', { path: '.obsidian./app.json' }],
   ['the configuration folder with a trailing space', { path: '.obsidian /x.md' }],
   ['a rename whose target holds a backslash', { kind: 'rename', target_path: 'Notes\\B.md' }],
+  // Windows strips trailing dots and spaces from every name, so `.. ` is `..` there.
+  ['a later segment of two dots and a space', { path: 'Notes/.. /../x.md' }],
+  ['a later segment of a dot and a space', { path: 'Notes/. /x.md' }],
+  ['a later segment of three dots', { path: 'Notes/.../x.md' }],
+  ['a folder name that ends in a space', { path: 'Notes /x.md' }],
+  ['a file name that ends in a dot', { path: 'Notes/x.' }],
+  ['a drive letter', { path: 'C:/x.md' }],
+  ['a stream name', { path: 'Notes/A.md:hidden' }],
+  ['the configuration folder of the vault', { path: '.custom-config/app.json' }],
+  ['the configuration folder of the vault in another case', { path: '.CUSTOM-Config/app.json' }],
+  ['a rename into a segment of three dots', { kind: 'rename', target_path: 'Notes/.../B.md' }],
+  ['a move whose target holds a colon', { kind: 'move', target_path: 'Notes:x/B.md' }],
+  ['a rename into the configuration folder of the vault', { kind: 'rename', target_path: '.custom-config/B.md' }],
 ];
 
 describe('the paths of an operation', () => {

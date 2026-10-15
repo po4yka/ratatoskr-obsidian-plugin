@@ -55,6 +55,8 @@ export class FakeObsidian {
   readonly list = async (): Promise<string[]> => [...this.files.keys()];
 
   readonly vault = {
+    /** `Vault.configDir`: the configuration folder, which the owner can rename. */
+    configDir: '.obsidian',
     getFileByPath: (path: string): FakeFile | null => {
       this.lookups.push(path);
       return this.files.has(path) ? { path } : null;
