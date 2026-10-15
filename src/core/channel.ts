@@ -1,6 +1,6 @@
 import type { Auth, EdgeClient } from '../api/edge';
 import { EdgeError } from '../api/http';
-import { MAX_BATCH_CHANGES, NOTES_CODES, type ManifestEntry } from '../api/notes';
+import { MAX_BATCH_CHANGES, NOTES_CODES, type DeviceResult, type ManifestEntry } from '../api/notes';
 import { DeviceQueue } from './device-queue';
 import { factsOfBytes } from './hash';
 import type { DeviceSession } from './session';
@@ -48,6 +48,8 @@ export class Channel {
   readonly #parts: ChannelParts;
   /** The most changes of one request. A `batch_too_large` answer lowers it. */
   #limit = MAX_BATCH_CHANGES;
+  /** The results of the device queue that did not reach notes yet, by operation id. */
+  readonly #results = new Map<string, DeviceResult>();
 
   constructor(parts: ChannelParts) {
     this.#parts = parts;
@@ -57,7 +59,7 @@ export class Channel {
   async pull(now: number): Promise<void> {
     const writes = this.#parts.writes;
     if (writes !== undefined) {
-      await new DeviceQueue({ ...this.#parts, ...writes, upload: (blob) => this.#upload(blob) }).pull(now);
+      await new DeviceQueue({ ...this.#parts, ...writes, results: this.#results, upload: (blob) => this.#upload(blob) }).pull(now);
     }
   }
 

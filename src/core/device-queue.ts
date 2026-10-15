@@ -18,6 +18,11 @@ export interface QueueParts {
   readonly upload: (blob: { path: string; sha256: string }) => Promise<void>;
   /** Gives one vault event to the change channel. */
   readonly changed: (event: VaultEvent) => Promise<void>;
+  /**
+   * The results that did not reach notes, by operation id. The channel keeps them from one pull to
+   * the next, so that an operation is reported again and not applied again.
+   */
+  readonly results: Map<string, DeviceResult>;
 }
 
 /**
@@ -51,6 +56,11 @@ export class DeviceQueue {
   }
 
   async #settle(operation: DeviceOperation, now: number): Promise<void> {
+    const kept = this.#parts.results.get(operation.operation_id);
+    if (kept !== undefined) {
+      await this.#report(operation, kept);
+      return;
+    }
     const result = await applyOperation(this.#parts.app, { operation, content: () => this.#content(operation) });
     if (result.outcome === 'base_mismatch') {
       // Notes needs each local file that is newer than its base to raise the conflict.
@@ -72,12 +82,22 @@ export class DeviceQueue {
   }
 
   /**
-   * Sends the result. A linking note that Obsidian wrote with another hash than notes expected is
-   * uploaded first. When notes does not have the bytes of a hash from this connection
+   * Reports the result. Notes records nothing on a `5xx` and settles the rest of a group on a retry:
+   * until it answers `200`, the result stays in `results`, and the next pull sends it again.
+   */
+  async #report(operation: DeviceOperation, result: DeviceResult): Promise<void> {
+    this.#parts.results.set(operation.operation_id, result);
+    await this.#send(operation, result);
+    this.#parts.results.delete(operation.operation_id);
+  }
+
+  /**
+   * Sends the result once. A linking note that Obsidian wrote with another hash than notes expected
+   * is uploaded first. When notes does not have the bytes of a hash from this connection
    * (`notes.channel.bytes_missing`, one hash for each answer), the file with that hash is uploaded
    * and the result is sent again, at most once for each file that the result names.
    */
-  async #report(operation: DeviceOperation, result: DeviceResult): Promise<void> {
+  async #send(operation: DeviceOperation, result: DeviceResult): Promise<void> {
     for (const rewrite of rewritesToUpload(operation, result)) {
       await this.#upload(rewrite);
     }

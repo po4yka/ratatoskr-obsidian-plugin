@@ -118,8 +118,11 @@ export interface DeviceOperationPage {
  */
 export type DeviceResult =
   | { readonly outcome: 'applied'; readonly sha256?: string; readonly rewrites?: readonly RewriteResult[] }
-  | { readonly outcome: 'base_mismatch'; readonly local_sha256: string | null }
+  | { readonly outcome: 'base_mismatch'; readonly local_sha256: string | null; readonly rewrites?: readonly RewriteMismatch[] }
   | { readonly outcome: 'failed'; readonly code: string };
+
+/** A linking note in a `base_mismatch` result: never `applied` there, which notes refuses with `400`. */
+export type RewriteMismatch = Extract<RewriteResult, { outcome: 'base_mismatch' }>;
 
 /** The answer to a result: the state of the write in notes. */
 export interface DeviceResultAnswer {

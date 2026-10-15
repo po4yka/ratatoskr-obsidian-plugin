@@ -1,5 +1,5 @@
 import type { DeviceOperation, DeviceResult } from '../api/notes';
-import { appliedWith, hasStaleRewrite, rewriteTargets } from './rewrites';
+import { appliedWith, hasStaleRewrite, mismatchWith, rewriteTargets } from './rewrites';
 import type { VaultApp } from './types';
 import { fileAt, hashAt } from './vault-lookup';
 
@@ -61,7 +61,7 @@ async function refusal(app: VaultApp, operation: DeviceOperation): Promise<Devic
   }
   // A rename and its link rewrites are one group: one linking note with another base stops all.
   if (MOVES.has(operation.kind) && (await hasStaleRewrite(app, operation))) {
-    return { outcome: 'base_mismatch', local_sha256: local };
+    return mismatchWith(app, { operation, local });
   }
   return Object.hasOwn(APPLY, operation.kind) ? null : { outcome: 'failed', code: UNSUPPORTED };
 }
@@ -82,7 +82,7 @@ interface Seen {
  */
 async function otherBase(app: VaultApp, seen: Seen): Promise<DeviceResult> {
   const earlier = await earlierResult(app, seen);
-  return earlier === null ? { outcome: 'base_mismatch', local_sha256: seen.local } : appliedWith(app, { operation: seen.operation, sha256: earlier });
+  return earlier === null ? mismatchWith(app, seen) : appliedWith(app, { operation: seen.operation, sha256: earlier });
 }
 
 /**

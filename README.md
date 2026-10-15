@@ -171,7 +171,8 @@ on. The plugin reads the queue and applies each write to the vault.
   link to the file, each with its base SHA-256 and the SHA-256 that Ratatoskr expects after the
   link update. The plugin checks the path of each linking note. Before the rename, it compares each
   linking note with its base, as for the renamed file: when one differs, it renames nothing,
-  reports `base_mismatch` for the whole rename, and sends each newer note as a change. After the
+  reports `base_mismatch` for the whole rename with the SHA-256 of each listed note in `rewrites`
+  (each as `base_mismatch`, `null` when the note is gone), and sends each newer note as a change. After the
   rename, Obsidian has updated the links, and the plugin reports each listed note in `rewrites`:
   `applied` with its SHA-256 now, or `base_mismatch` when the note is gone. A note whose SHA-256 is
   not the one that Ratatoskr expects is uploaded before the result.
@@ -188,8 +189,11 @@ on. The plugin reads the queue and applies each write to the vault.
   write, not as a new edit. Each note whose links Obsidian updated after a rename is an `updated`
   change.
 - **When the plugin stops.** When the download, the report or the upload fails, the plugin stops
-  the queue at that write and tries again at the next flush. A write stays in the queue until
-  Ratatoskr has its result, so the plugin keeps no cursor between two flushes.
+  the queue at that write and tries again at the next flush. A result that did not reach Ratatoskr
+  (an error `5xx` or a network error) stays in memory, and the next flush sends the same result
+  again, until Ratatoskr answers `200`. The plugin does not apply that write a second time. A write
+  stays in the queue until Ratatoskr has its result, so the plugin keeps no cursor between two
+  flushes.
 
 ## When the plugin sends nothing
 

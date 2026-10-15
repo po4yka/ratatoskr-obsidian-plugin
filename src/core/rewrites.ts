@@ -1,4 +1,4 @@
-import type { DeviceOperation, DeviceResult, RewriteResult, RewriteTarget } from '../api/notes';
+import type { DeviceOperation, DeviceResult, RewriteMismatch, RewriteResult, RewriteTarget } from '../api/notes';
 import type { VaultApp } from './types';
 import { hashAt } from './vault-lookup';
 
@@ -39,6 +39,23 @@ export async function hasStaleRewrite(app: VaultApp, operation: DeviceOperation)
     }
   }
   return false;
+}
+
+/**
+ * The `base_mismatch` result with the hash of the file of the operation, and for a rename each
+ * listed linking note as `base_mismatch` with its own hash (`null`: gone). Notes takes these hashes
+ * for the conflicts of the group (`ratatoskr-notes` 7cdb2a2).
+ */
+export async function mismatchWith(app: VaultApp, seen: { operation: DeviceOperation; local: string | null }): Promise<DeviceResult> {
+  const targets = rewriteTargets(seen.operation);
+  if (targets.length === 0) {
+    return { outcome: 'base_mismatch', local_sha256: seen.local };
+  }
+  const rewrites: RewriteMismatch[] = [];
+  for (const target of targets) {
+    rewrites.push({ path: target.path, outcome: 'base_mismatch', local_sha256: await hashAt(app, target.path) });
+  }
+  return { outcome: 'base_mismatch', local_sha256: seen.local, rewrites };
 }
 
 /** The `applied` result with `sha256`, and for a rename what the device did with each linking note. */
