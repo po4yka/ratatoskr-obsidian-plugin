@@ -45,6 +45,8 @@ export interface VaultFile {
  */
 export interface VaultApp {
   readonly vault: {
+    /** The configuration folder of the vault, `.obsidian` unless the owner renamed it. */
+    readonly configDir?: string;
     getFileByPath(path: string): VaultFile | null;
     getFolderByPath(path: string): unknown;
     readBinary(file: VaultFile): Promise<ArrayBuffer>;

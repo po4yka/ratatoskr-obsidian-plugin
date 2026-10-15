@@ -51,7 +51,7 @@ export async function applyOperation(app: VaultApp, step: Step): Promise<DeviceR
 
 /** Why the plugin does not apply the operation, or `null`. The path check comes before any vault call. */
 async function refusal(app: VaultApp, operation: DeviceOperation): Promise<DeviceResult | null> {
-  if (isUnsafe(operation.path) || isUnsafe(operation.target_path) || isUnsafeKey(operation.property_key)) {
+  if (isUnsafeOperation(app, operation)) {
     return { outcome: 'failed', code: UNSAFE_PATH };
   }
   const local = await hashAt(app, operation.path);
@@ -72,31 +72,40 @@ function otherBase(operation: DeviceOperation, local: string | null): DeviceResu
   return { outcome: 'base_mismatch', local_sha256: local };
 }
 
+/** Whether a path of the operation or its property key is one that the plugin never touches. */
+function isUnsafeOperation(app: VaultApp, operation: DeviceOperation): boolean {
+  const configDir = (app.vault.configDir ?? '.obsidian').toLowerCase();
+  const unsafe = (path: string | null): boolean => path !== null && isUnsafe(path, configDir);
+  return unsafe(operation.path) || unsafe(operation.target_path) || isUnsafeKey(operation.property_key);
+}
+
 /** A frontmatter key that names the prototype of the object, which the write would change instead. */
 function isUnsafeKey(key: string | null): boolean {
   return key === '__proto__' || key === 'constructor' || key === 'prototype';
 }
 
 /**
- * A path that the plugin never touches, whatever notes sends: a `\`, a C0 control character or DEL,
- * the `.obsidian` folder in any letter case as the first segment, an empty, `.` or `..` segment, or
- * a leading `/`. Windows reads `\` as a separator and removes trailing dots and spaces from a name,
- * so `.obsidian.` is the configuration folder there. The contract `notes/write-request.v1` refuses
- * these paths too; this is the second check, on the device.
+ * A path that the plugin never touches, whatever notes sends: a `\`, a `:`, a C0 control character
+ * or DEL; a first segment that is `.obsidian` or the `configDir` of the vault, in any letter case;
+ * an empty segment, so also a leading `/`; or a segment that ends in a dot or a space, so also `.`
+ * and `..`. Windows reads `\` as a separator and `:` as a drive or a stream, and it removes trailing
+ * dots and spaces from every name, so `.. ` is `..` there. The contract `notes/write-request.v1`
+ * refuses most of these paths too; this is the second check, on the device.
  */
-function isUnsafe(path: string | null): boolean {
-  if (path === null) {
-    return false;
-  }
+function isUnsafe(path: string, configDir: string): boolean {
   const segments = path.split('/');
-  const first = (segments[0] ?? '').replace(/[. ]+$/, '');
-  return hasUnsafeCharacter(path) || first.toLowerCase() === '.obsidian' || segments.some((segment) => ['', '.', '..'].includes(segment));
+  const first = (segments[0] ?? '').toLowerCase();
+  return hasUnsafeCharacter(path) || first === '.obsidian' || first === configDir || segments.some(isUnsafeSegment);
+}
+
+function isUnsafeSegment(segment: string): boolean {
+  return segment === '' || segment.endsWith('.') || segment.endsWith(' ');
 }
 
 function hasUnsafeCharacter(path: string): boolean {
   return [...path].some((character) => {
     const code = character.charCodeAt(0);
-    return character === '\\' || code < 0x20 || code === 0x7f;
+    return character === '\\' || character === ':' || code < 0x20 || code === 0x7f;
   });
 }
 
