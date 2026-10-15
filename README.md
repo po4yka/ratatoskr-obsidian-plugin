@@ -153,7 +153,8 @@ on. The plugin reads the queue and applies each write to the vault.
   | `set_property` | `fileManager.processFrontMatter`. It sets one property to the value from Ratatoskr, or removes it. |
 
   The plugin downloads the bytes of a write only after the base check, and it uses them only when
-  they have the SHA-256 that Ratatoskr named.
+  they have the SHA-256 that Ratatoskr named. Bytes with another SHA-256 change nothing: the plugin
+  reports `failed` with `notes.channel.refused`.
 - **The result.** After a write, the plugin reports `applied` with the SHA-256 of the file (of the
   new path after a rename or a move; no hash after a delete). When Ratatoskr does not have those
   bytes, for example after a property change, or after another plugin changed the file on save, it

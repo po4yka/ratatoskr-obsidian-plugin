@@ -58,14 +58,11 @@ export class DeviceQueue {
     await this.#report(operation, result);
   }
 
-  /** The bytes of an operation, when they have the hash that notes named. */
-  async #content(operation: DeviceOperation): Promise<Uint8Array> {
+  /** The bytes of an operation, or `null` when they do not have the hash that notes named. */
+  async #content(operation: DeviceOperation): Promise<Uint8Array | null> {
     const body = { operationId: operation.operation_id };
     const bytes = await this.#call((edge, call) => edge.readOperationContent({ ...call, body }));
-    if ((await factsOfBytes(bytes)).sha256 !== operation.content?.digest.hex) {
-      throw new Error('the bytes of an operation do not have the hash that notes named');
-    }
-    return bytes;
+    return (await factsOfBytes(bytes)).sha256 === operation.content?.digest.hex ? bytes : null;
   }
 
   /**

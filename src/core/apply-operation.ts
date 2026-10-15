@@ -8,10 +8,13 @@ const REFUSED = 'notes.channel.refused';
 /** The code of an operation of a kind that this plugin does not know. */
 const UNSUPPORTED = 'notes.write.unsupported';
 
-/** One operation, and the loader of its bytes. The bytes are loaded only after the base check. */
+/**
+ * One operation, and the loader of its bytes. The bytes are loaded only after the base check. The
+ * loader gives `null` for bytes that do not have the hash of the content.
+ */
 export interface Step {
   readonly operation: DeviceOperation;
-  readonly content: () => Promise<Uint8Array>;
+  readonly content: () => Promise<Uint8Array | null>;
 }
 
 interface Write {
@@ -49,6 +52,9 @@ export async function applyOperation(app: VaultApp, step: Step): Promise<DeviceR
     return { outcome: 'failed', code: UNSUPPORTED };
   }
   const bytes = operation.content === null ? null : await step.content();
+  if (operation.content !== null && bytes === null) {
+    return { outcome: 'failed', code: REFUSED };
+  }
   try {
     await APPLY[operation.kind](app, { operation, bytes });
   } catch {
