@@ -44,7 +44,7 @@ export function blobRef(text: string, mediaType = 'text/markdown'): Record<strin
 
 /** One operation of the device queue, with the fields that `ratatoskr-notes` lists for it. */
 export function operation(fields: { operation_id: string; kind: string; path: string } & Record<string, unknown>): Record<string, unknown> {
-  return { cursor: '1', target_path: null, base_hash: null, content: null, property_key: null, property_change: null, expected_sha256: null, ...fields };
+  return { cursor: '1', target_path: null, base_hash: null, content: null, property_key: null, property_change: null, expected_sha256: null, rewrites: [], ...fields };
 }
 
 /** A queue of one page that holds `operations`. */
