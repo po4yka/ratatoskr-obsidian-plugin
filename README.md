@@ -120,9 +120,7 @@ How the plugin sends the bytes:
 - When Ratatoskr failed the connection, for example because no manifest arrived within 30 minutes
   of the connect (`notes.channel.manifest_missing`), the routes of the connection answer
   `notes.connection.not_found`. The plugin then connects the vault again, sends a manifest to the
-  new connection, and starts the device sequence of that connection at 1. A connection that you
-  removed in Ratatoskr answers the same way, so the plugin connects the vault again while it is
-  enabled and paired. To stop the sending, select **Unpair** or disable the plugin.
+  new connection, and starts the device sequence of that connection at 1.
 
 ## When the plugin sends nothing
 
@@ -134,6 +132,10 @@ How the plugin sends the bytes:
   vault on another device tries to connect, send a manifest, upload or send changes, Ratatoskr
   refuses it, and the plugin stops. The status line tells you to use Obsidian Sync to share a vault
   between devices.
+- **You removed the connection in Ratatoskr.** The routes of that connection answer
+  `410 notes.connection.removed`. The plugin stops, deletes the changes that wait, and does not
+  connect again. To send again, select **Connect** in the plugin settings: the plugin makes a new
+  connection and sends a manifest of the vault.
 - **The Edge address changed after pairing.** Pair again.
 - **The credential is from an older version of the plugin.** That version did not keep the Edge
   origin of the pairing. A new pairing is necessary.
