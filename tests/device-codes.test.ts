@@ -5,6 +5,11 @@ import { settle, startPlugin, type Running } from './support/plugin';
 
 const SECOND_ID = '0199a1b2-0000-7000-8000-0000000c0002';
 
+const REMOVED = {
+  status: 410,
+  body: { code: 'notes.connection.removed', message: 'The owner removed this connection. Stop sending changes for it.', retryable: false },
+};
+
 let running: Running | undefined;
 
 async function createAndFlush(note: { path: string; at: number }): Promise<void> {
@@ -100,6 +105,48 @@ describe('the answers of the notes device channel', () => {
     running = await startPlugin(edge, { files: { 'Notes/First.md': '# First\n' } });
 
     expect(edge.sent(`/v1/notes/connections/${CONNECTION_ID}/manifest`)).toHaveLength(1);
+    expect(running.core.status).toMatch(/Up to date/);
+  });
+
+  // Notes answers `410 notes.connection.removed` on every device route when the owner removed the
+  // connection. The plugin stops until the owner selects Connect again.
+  it.each(['changes', 'manifest', 'blobs'])('a connection that the owner removed stops the plugin (%s)', async (route) => {
+    const edge = new FakeEdge();
+    edge.keepNotesBytes();
+    edge.answer(`POST /v1/notes/connections/{id}/${route}`, REMOVED);
+    running = await startPlugin(edge);
+    await createAndFlush({ path: 'Notes/A.md', at: 1_000 });
+    const requests = edge.requests.length;
+
+    await createAndFlush({ path: 'Notes/B.md', at: 20_000 });
+
+    expect(running.core.status).toMatch(/owner removed this connection/);
+    expect(running.core.status).toMatch(/select Connect/);
+    expect(edge.requests.length).toBe(requests);
+    expect(edge.sent('/v1/notes/connections')).toHaveLength(1);
+    expect((await running.vault.loadData()) as { outbox: unknown[] }).toMatchObject({ outbox: [] });
+  });
+
+  it('Connect after a removal connects again and sends', async () => {
+    const edge = new FakeEdge();
+    const answer = edge.routes.get('POST /v1/notes/connections/{id}/changes');
+    edge.answer('POST /v1/notes/connections/{id}/changes', REMOVED);
+    running = await startPlugin(edge);
+    await createAndFlush({ path: 'Notes/A.md', at: 1_000 });
+    if (answer !== undefined) {
+      edge.routes.set('POST /v1/notes/connections/{id}/changes', answer);
+    }
+    edge.answer('POST /v1/notes/connections', {
+      status: 202,
+      body: { connection_id: SECOND_ID, channel: 'plugin', state: 'connecting' },
+    });
+
+    await running.core.connect();
+    await createAndFlush({ path: 'Notes/B.md', at: 20_000 });
+
+    expect(edge.sent(`/v1/notes/connections/${SECOND_ID}/manifest`)).toHaveLength(1);
+    const batches = edge.sent(`/v1/notes/connections/${SECOND_ID}/changes`);
+    expect(batches.map((request) => (JSON.parse(String(request.body)) as { changes: Change[] }).changes.map((change) => change.path))).toEqual([['Notes/B.md']]);
     expect(running.core.status).toMatch(/Up to date/);
   });
 });
