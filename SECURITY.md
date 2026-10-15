@@ -5,7 +5,8 @@ refresh token, the content of a vault, a `data.json` file, or a log that contain
 vault.
 
 A security review is necessary for each change to pairing, credential storage, the requests to
-Edge, the data that the plugin persists, and the dependencies that ship in `main.js`.
+Edge, the data that the plugin persists, the writes that the plugin applies to the vault, and the
+dependencies that ship in `main.js`.
 
 Baseline:
 
@@ -17,14 +18,20 @@ Baseline:
 - The plugin talks only to the Edge address that the owner saves, over HTTPS. A request with a
   credential goes only to the Edge origin of the pairing.
 - On desktop, the plugin sends with the Node `http` and `https` clients, loaded through
-  `process.getBuiltinModule`. It follows no redirect, stops an answer body at 8 MiB, and stops a
-  request after 30 s without data or 60 s in total. A desktop app without
-  `process.getBuiltinModule` gets no transport: the plugin sends no request and asks the owner to
-  update Obsidian. It does not use `requestUrl` or `window.require` on desktop.
+  `process.getBuiltinModule`. It follows no redirect, stops an answer body at 8 MiB (64 MiB for
+  the bytes of a write), and stops a request after 30 s without data or 60 s in total. A desktop
+  app without `process.getBuiltinModule` gets no transport: the plugin sends no request and asks
+  the owner to update Obsidian. It does not use `requestUrl` or `window.require` on desktop.
 - On mobile, the only transport is Obsidian `requestUrl`. It follows a redirect and does not report
   the final address, so a redirect from the Edge address can send a credential to another address.
   The plugin cannot refuse this on mobile.
 - A renewal changes only the session credential, the refresh token and their expiry times. **Unpair**
   deletes the device credential from the app.
+- Ratatoskr can change the vault through the plugin only while the write mode of the connection is
+  on. The plugin applies a write only when the local file has the base hash of the write, so it
+  never replaces a local edit that Ratatoskr did not see. It refuses, before any vault call, a path
+  whose first folder is `.obsidian` in any letter case, or that has an empty, `.` or `..` part or a
+  leading `/`. It writes only bytes with the SHA-256 that Ratatoskr named. A delete goes to the
+  trash of the system, never permanently.
 - The plugin has no remote code and no `eval`.
 - Logs and status text name no credential and no file content.
