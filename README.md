@@ -82,7 +82,7 @@ for a request with a credential. The transport is different on each platform:
 |---|---|---|---|
 | Desktop, with `process.getBuiltinModule` (Node 20.16 or later) | The Node `http` and `https` clients. | Not followed. A 3xx answer is refused, and nothing goes to the new address. | The answer body stops at 8 MiB, and at 64 MiB for the bytes of a write. A request stops after 30 s without data, and after 60 s in total. |
 | Desktop, without `process.getBuiltinModule` | None. The plugin sends no request, the pairing included, and reads no file for a manifest. The status line asks you to update Obsidian. | Not applicable. | Not applicable. |
-| Mobile | Obsidian `requestUrl`, the only transport that the app has. | Followed. `requestUrl` does not report the final address, so the plugin cannot refuse a redirect, and a request with a credential goes to the address of the redirect. | The limits of `requestUrl`. |
+| Mobile | Obsidian `requestUrl`, the only transport that the app has. | Followed. `requestUrl` does not report the final address, so the plugin cannot refuse a redirect, and a request with a credential goes to the address of the redirect. | The limits of `requestUrl`. The plugin refuses the bytes of a write over 64 MiB, by the length header first. |
 
 It sends:
 
@@ -148,7 +148,9 @@ on. The plugin reads the queue and applies each write to the vault.
   file. It reports `base_mismatch` with the hash of the local file, and it sends the local file as
   a change. Ratatoskr shows a conflict, and you select the result in Ratatoskr. Ratatoskr names
   each path in Unicode NFC. macOS and iOS can keep a file name in NFD, so when the vault has no file
-  at the NFC path, the plugin looks for the NFD form of the path.
+  at the NFC path, the plugin looks for the NFD form of the path. When the local file already has
+  the SHA-256 that the write gives, the plugin applied it before and its result was lost: the
+  plugin reports `applied` with that hash and changes nothing.
 - **How.** The plugin uses the vault API of Obsidian:
 
   | Write | Vault API |
@@ -157,10 +159,10 @@ on. The plugin reads the queue and applies each write to the vault.
   | `update` | `vault.modifyBinary`. |
   | `rename`, `move` | `fileManager.renameFile`. Obsidian updates the links to the file by the settings of the vault, as for a rename that you make in Obsidian. |
   | `delete` | `vault.trash` to the trash of the system, or to `.trash` in the vault. The plugin never deletes a file permanently. |
-  | `set_property` | `fileManager.processFrontMatter`. It sets one property to the value from Ratatoskr, or removes it. |
+  | `set_property` | `fileManager.processFrontMatter`. It sets one property to the value from Ratatoskr, or removes it. The keys `__proto__`, `constructor` and `prototype` give `failed` with `notes.write.unsafe_path`. |
 
   The plugin downloads the bytes of a write only after the base check, and it uses them only when
-  they have the SHA-256 that Ratatoskr named. Bytes with another SHA-256 change nothing: the plugin
+  they have the length and the SHA-256 that Ratatoskr named. Other bytes change nothing: the plugin
   reports `failed` with `notes.channel.refused`.
 - **The result.** After a write, the plugin reports `applied` with the SHA-256 of the file (of the
   new path after a rename or a move; no hash after a delete). When Ratatoskr does not have those

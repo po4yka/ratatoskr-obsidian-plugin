@@ -51,14 +51,30 @@ export async function applyOperation(app: VaultApp, step: Step): Promise<DeviceR
 
 /** Why the plugin does not apply the operation, or `null`. The path check comes before any vault call. */
 async function refusal(app: VaultApp, operation: DeviceOperation): Promise<DeviceResult | null> {
-  if (isUnsafe(operation.path) || isUnsafe(operation.target_path)) {
+  if (isUnsafe(operation.path) || isUnsafe(operation.target_path) || isUnsafeKey(operation.property_key)) {
     return { outcome: 'failed', code: UNSAFE_PATH };
   }
   const local = await hashAt(app, operation.path);
   if (local !== operation.base_hash) {
-    return { outcome: 'base_mismatch', local_sha256: local };
+    return otherBase(operation, local);
   }
   return Object.hasOwn(APPLY, operation.kind) ? null : { outcome: 'failed', code: UNSUPPORTED };
+}
+
+/**
+ * The result for a local file without the base hash. A file that already has the expected hash is a
+ * write that the device applied before its result was lost: it is `applied`, not a conflict.
+ */
+function otherBase(operation: DeviceOperation, local: string | null): DeviceResult {
+  if (local !== null && local === operation.expected_sha256) {
+    return { outcome: 'applied', sha256: local };
+  }
+  return { outcome: 'base_mismatch', local_sha256: local };
+}
+
+/** A frontmatter key that names the prototype of the object, which the write would change instead. */
+function isUnsafeKey(key: string | null): boolean {
+  return key === '__proto__' || key === 'constructor' || key === 'prototype';
 }
 
 /**
@@ -148,6 +164,11 @@ async function hashAt(app: VaultApp, path: string): Promise<string | null> {
  */
 function lookUp(app: VaultApp, path: string): VaultFile | null {
   return app.vault.getFileByPath(path) ?? app.vault.getFileByPath(path.normalize('NFD'));
+}
+
+/** The path under which the vault API keeps the file of `path`: the NFD form when only that exists. */
+export function storedPath(app: VaultApp, path: string): string {
+  return lookUp(app, path)?.path ?? path;
 }
 
 function fileAt(app: VaultApp, path: string): VaultFile {

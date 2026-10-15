@@ -24,7 +24,7 @@ Baseline:
   the owner to update Obsidian. It does not use `requestUrl` or `window.require` on desktop.
 - On mobile, the only transport is Obsidian `requestUrl`. It follows a redirect and does not report
   the final address, so a redirect from the Edge address can send a credential to another address.
-  The plugin cannot refuse this on mobile.
+  The plugin cannot refuse this on mobile. It refuses the bytes of a write over 64 MiB there too.
 - A renewal changes only the session credential, the refresh token and their expiry times. **Unpair**
   deletes the device credential from the app.
 - Ratatoskr can change the vault through the plugin only while the write mode of the connection is
@@ -32,7 +32,8 @@ Baseline:
   never replaces a local edit that Ratatoskr did not see. It refuses, before any vault call, a path
   whose first folder is `.obsidian` in any letter case (also with trailing dots or spaces), or that
   has an empty, `.` or `..` part, a leading `/`, a `\` or a control character. It writes only
-  bytes with the SHA-256 that Ratatoskr named. A delete goes to the trash of the system, never
-  permanently.
+  bytes with the length and the SHA-256 that Ratatoskr named, and it refuses a property key that
+  names the prototype of an object (`__proto__`, `constructor`, `prototype`). A delete goes to the
+  trash of the system, never permanently.
 - The plugin has no remote code and no `eval`.
 - Logs and status text name no credential and no file content.

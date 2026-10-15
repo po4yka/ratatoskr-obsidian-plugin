@@ -1,7 +1,7 @@
 import type { Auth, EdgeClient } from '../api/edge';
 import { EdgeError } from '../api/http';
 import { NOTES_CODES, type DeviceOperation, type DeviceOperationPage, type DeviceResult } from '../api/notes';
-import { applyOperation } from './apply-operation';
+import { applyOperation, storedPath } from './apply-operation';
 import { factsOfBytes } from './hash';
 import type { DeviceSession } from './session';
 import type { VaultApp, VaultEvent } from './types';
@@ -58,11 +58,14 @@ export class DeviceQueue {
     await this.#report(operation, result);
   }
 
-  /** The bytes of an operation, or `null` when they do not have the hash that notes named. */
+  /** The bytes of an operation, or `null` when they do not have the length and the hash that notes named. */
   async #content(operation: DeviceOperation): Promise<Uint8Array | null> {
     const body = { operationId: operation.operation_id };
     const bytes = await this.#call((edge, call) => edge.readOperationContent({ ...call, body }));
-    return (await factsOfBytes(bytes)).sha256 === operation.content?.digest.hex ? bytes : null;
+    if (bytes.length !== operation.content?.length_bytes) {
+      return null;
+    }
+    return (await factsOfBytes(bytes)).sha256 === operation.content.digest.hex ? bytes : null;
   }
 
   /**
@@ -79,7 +82,7 @@ export class DeviceQueue {
         throw error;
       }
       for (const sha256 of missing) {
-        await this.#parts.upload({ path: operation.target_path ?? operation.path, sha256 });
+        await this.#parts.upload({ path: storedPath(this.#parts.app, operation.target_path ?? operation.path), sha256 });
       }
       await this.#call((edge, call) => edge.sendOperationResult({ ...call, body }));
     }
