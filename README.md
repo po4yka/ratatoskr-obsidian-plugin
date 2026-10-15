@@ -138,8 +138,9 @@ on. The plugin reads the queue and applies each write to the vault.
 - **Order.** The plugin reads the queue from the start, page by page. It sends the cursor back
   exactly as Ratatoskr sent it. It applies and reports each write before the next one.
 - **The path check.** Before it touches the vault, the plugin refuses a write whose path or new
-  path has `.obsidian` as its first folder (in any letter case), an empty, `.` or `..` part, or a
-  leading `/`. It reports `failed` with `notes.write.unsafe_path`. Ratatoskr refuses these paths
+  path has `.obsidian` as its first folder (in any letter case, also with dots or spaces at the
+  end, which Windows removes), an empty, `.` or `..` part, a leading `/`, a `\`, or a control
+  character. It reports `failed` with `notes.write.unsafe_path`. Ratatoskr refuses these paths
   too; the plugin checks them again on the device.
 - **The base check.** Each write names the SHA-256 that the local file must have (for a new file:
   no file). Before a write, the plugin compares that hash with the local file. When they differ,

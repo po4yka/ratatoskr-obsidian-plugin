@@ -62,16 +62,26 @@ async function refusal(app: VaultApp, operation: DeviceOperation): Promise<Devic
 }
 
 /**
- * A path that the plugin never touches, whatever notes sends: the `.obsidian` folder in any letter
- * case as the first segment, an empty, `.` or `..` segment, or a leading `/`. The contract
- * `notes/write-request.v1` refuses the same paths; this is the second check, on the device.
+ * A path that the plugin never touches, whatever notes sends: a `\`, a C0 control character or DEL,
+ * the `.obsidian` folder in any letter case as the first segment, an empty, `.` or `..` segment, or
+ * a leading `/`. Windows reads `\` as a separator and removes trailing dots and spaces from a name,
+ * so `.obsidian.` is the configuration folder there. The contract `notes/write-request.v1` refuses
+ * these paths too; this is the second check, on the device.
  */
 function isUnsafe(path: string | null): boolean {
   if (path === null) {
     return false;
   }
   const segments = path.split('/');
-  return segments[0]?.toLowerCase() === '.obsidian' || segments.some((segment) => segment === '' || segment === '.' || segment === '..');
+  const first = (segments[0] ?? '').replace(/[. ]+$/, '');
+  return hasUnsafeCharacter(path) || first.toLowerCase() === '.obsidian' || segments.some((segment) => ['', '.', '..'].includes(segment));
+}
+
+function hasUnsafeCharacter(path: string): boolean {
+  return [...path].some((character) => {
+    const code = character.charCodeAt(0);
+    return character === '\\' || code < 0x20 || code === 0x7f;
+  });
 }
 
 async function write(app: VaultApp, step: Step): Promise<DeviceResult> {

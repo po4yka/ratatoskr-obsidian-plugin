@@ -30,8 +30,9 @@ Baseline:
 - Ratatoskr can change the vault through the plugin only while the write mode of the connection is
   on. The plugin applies a write only when the local file has the base hash of the write, so it
   never replaces a local edit that Ratatoskr did not see. It refuses, before any vault call, a path
-  whose first folder is `.obsidian` in any letter case, or that has an empty, `.` or `..` part or a
-  leading `/`. It writes only bytes with the SHA-256 that Ratatoskr named. A delete goes to the
-  trash of the system, never permanently.
+  whose first folder is `.obsidian` in any letter case (also with trailing dots or spaces), or that
+  has an empty, `.` or `..` part, a leading `/`, a `\` or a control character. It writes only
+  bytes with the SHA-256 that Ratatoskr named. A delete goes to the trash of the system, never
+  permanently.
 - The plugin has no remote code and no `eval`.
 - Logs and status text name no credential and no file content.
