@@ -137,6 +137,10 @@ on. The plugin reads the queue and applies each write to the vault.
   the write as waiting for the device.
 - **Order.** The plugin reads the queue from the start, page by page. It sends the cursor back
   exactly as Ratatoskr sent it. It applies and reports each write before the next one.
+- **The path check.** Before it touches the vault, the plugin refuses a write whose path or new
+  path has `.obsidian` as its first folder (in any letter case), an empty, `.` or `..` part, or a
+  leading `/`. It reports `failed` with `notes.write.unsafe_path`. Ratatoskr refuses these paths
+  too; the plugin checks them again on the device.
 - **The base check.** Each write names the SHA-256 that the local file must have (for a new file:
   no file). Before a write, the plugin compares that hash with the local file. When they differ,
   you changed the file on this device after Ratatoskr read it. Then the plugin does not change the
@@ -212,5 +216,5 @@ of the notes, their links and their tags.
 When the write mode of the connection is on, Ratatoskr can create, change, rename, move and delete
 files of the vault, and set or remove a property of a note, through the vault API. It changes a file
 only when the file has the hash that Ratatoskr read before. A delete moves the file to a trash. The
-plugin never writes the `.obsidian` configuration folder for Ratatoskr, because Ratatoskr does not
-send a write for it.
+plugin never writes the `.obsidian` configuration folder for Ratatoskr, and it refuses a path that
+could leave the vault folder.

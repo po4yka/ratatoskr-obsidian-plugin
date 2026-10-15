@@ -8,6 +8,9 @@ const REFUSED = 'notes.channel.refused';
 /** The code of an operation of a kind that this plugin does not know. */
 const UNSUPPORTED = 'notes.write.unsupported';
 
+/** The code of an operation whose path the plugin never touches (`isUnsafe`). */
+const UNSAFE_PATH = 'notes.write.unsafe_path';
+
 /**
  * One operation, and the loader of its bytes. The bytes are loaded only after the base check. The
  * loader gives `null` for bytes that do not have the hash of the content.
@@ -43,14 +46,36 @@ const APPLY: Record<DeviceOperation['kind'], Apply> = {
  * the bytes cannot be loaded, it throws: that is not a result, and the operation stays in the queue.
  */
 export async function applyOperation(app: VaultApp, step: Step): Promise<DeviceResult> {
-  const { operation } = step;
+  return (await refusal(app, step.operation)) ?? write(app, step);
+}
+
+/** Why the plugin does not apply the operation, or `null`. The path check comes before any vault call. */
+async function refusal(app: VaultApp, operation: DeviceOperation): Promise<DeviceResult | null> {
+  if (isUnsafe(operation.path) || isUnsafe(operation.target_path)) {
+    return { outcome: 'failed', code: UNSAFE_PATH };
+  }
   const local = await hashAt(app, operation.path);
   if (local !== operation.base_hash) {
     return { outcome: 'base_mismatch', local_sha256: local };
   }
-  if (!Object.hasOwn(APPLY, operation.kind)) {
-    return { outcome: 'failed', code: UNSUPPORTED };
+  return Object.hasOwn(APPLY, operation.kind) ? null : { outcome: 'failed', code: UNSUPPORTED };
+}
+
+/**
+ * A path that the plugin never touches, whatever notes sends: the `.obsidian` folder in any letter
+ * case as the first segment, an empty, `.` or `..` segment, or a leading `/`. The contract
+ * `notes/write-request.v1` refuses the same paths; this is the second check, on the device.
+ */
+function isUnsafe(path: string | null): boolean {
+  if (path === null) {
+    return false;
   }
+  const segments = path.split('/');
+  return segments[0]?.toLowerCase() === '.obsidian' || segments.some((segment) => segment === '' || segment === '.' || segment === '..');
+}
+
+async function write(app: VaultApp, step: Step): Promise<DeviceResult> {
+  const { operation } = step;
   const bytes = operation.content === null ? null : await step.content();
   if (operation.content !== null && bytes === null) {
     return { outcome: 'failed', code: REFUSED };
