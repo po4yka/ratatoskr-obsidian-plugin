@@ -1,6 +1,6 @@
 import { Notice, Platform, Plugin, requestUrl, TAbstractFile, TFolder, type App } from 'obsidian';
-import type { HttpResponse, Transport } from './api/http';
 import { nodeClients, platformTransport } from './api/node-transport';
+import { requestUrlTransport } from './api/request-url';
 import { RatatoskrCore } from './core/core';
 import { edgeOrigin } from './core/edge-address';
 import type { CredentialEnvironment, SafeStorageLike, SecretStorageLike } from './core/credentials';
@@ -77,7 +77,7 @@ export default class RatatoskrPlugin extends Plugin {
     const config = this.config;
     this.core = await RatatoskrCore.open({
       host: this.#stateHost(),
-      transport: platformTransport({ isMobileApp: Platform.isMobileApp, clients: nodeClients(), requestUrl: requestUrlTransport }),
+      transport: platformTransport({ isMobileApp: Platform.isMobileApp, clients: nodeClients(), requestUrl: requestUrlTransport(requestUrl) }),
       // The saved address only. The core sends no secret when its origin is not the paired one.
       edgeOrigin: () => edgeOrigin(config.edgeUrl),
       get deviceName() {
@@ -114,29 +114,6 @@ export default class RatatoskrPlugin extends Plugin {
         await this.saveData(this.#stored);
       },
     };
-  }
-}
-
-/**
- * The transport of Obsidian mobile, which has no Node. `requestUrl` follows a redirect and does not
- * report where: see the README for this limit. Each request goes to its own origin, which the core
- * sets; it never reads the settings.
- */
-const requestUrlTransport: Transport = async (request): Promise<HttpResponse> => {
-  const origin = edgeOrigin(request.origin);
-  const body = typeof request.body === 'string' || request.body === undefined ? request.body : request.body.slice().buffer;
-  const response = await requestUrl({ url: `${origin}${request.path}`, method: request.method, headers: { ...request.headers }, ...(body === undefined ? {} : { body }), throw: false });
-  if (request.answer === 'bytes' && response.status >= 200 && response.status < 300) {
-    return { status: response.status, body: null, bytes: new Uint8Array(response.arrayBuffer) };
-  }
-  return { status: response.status, body: parseJson(response.text) };
-};
-
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return null;
   }
 }
 
