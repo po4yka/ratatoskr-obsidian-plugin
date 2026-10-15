@@ -26,7 +26,7 @@ export interface PluginState {
   needsManifest: boolean;
 }
 
-export type Blocked = 'sync' | 'cli' | 'channel_mismatch';
+export type Blocked = 'sync' | 'cli' | 'channel_mismatch' | 'removed';
 
 export function emptyState(): PluginState {
   return {

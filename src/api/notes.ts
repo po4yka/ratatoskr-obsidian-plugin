@@ -75,8 +75,10 @@ export const NOTES_CODES = {
   bytesMissing: 'notes.channel.bytes_missing',
   /** `413`, carries `max_changes`. Nothing of the batch was committed. */
   batchTooLarge: 'notes.channel.batch_too_large',
-  /** `404` on a route of a connection that is failed, removed, or of another owner. */
+  /** `404` on a route of a connection that is failed, of another owner, or of another device. */
   connectionNotFound: 'notes.connection.not_found',
+  /** `410` on a route of a connection that the owner removed, to the device of that connection. */
+  connectionRemoved: 'notes.connection.removed',
   /** The failure of a connect whose first manifest did not arrive within 30 minutes. */
   manifestMissing: 'notes.channel.manifest_missing',
 } as const;

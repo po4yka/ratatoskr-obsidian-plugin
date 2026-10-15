@@ -32,14 +32,24 @@ export async function connectVault(parts: { edge: EdgeClient; session: DeviceSes
   }
 }
 
-/** `notes.channel_mismatch` on any route: another device owns the connection, or the device is of another kind. */
-export function isMismatch(error: unknown): boolean {
-  return error instanceof EdgeError && error.code === NOTES_CODES.channelMismatch;
+/**
+ * Why an answer stops the plugin, or `null`: `notes.channel_mismatch` (another device owns the
+ * connection) or `notes.connection.removed` (the owner removed it). The plugin does not connect again.
+ */
+export function stopReason(error: unknown): 'channel_mismatch' | 'removed' | null {
+  if (!(error instanceof EdgeError)) {
+    return null;
+  }
+  if (error.code === NOTES_CODES.channelMismatch) {
+    return 'channel_mismatch';
+  }
+  return error.code === NOTES_CODES.connectionRemoved ? 'removed' : null;
 }
 
 /**
- * Notes failed the connection (no manifest within its bound) or it was removed: its routes answer
+ * Notes failed the connection (no manifest within its bound): its routes answer
  * `notes.connection.not_found`, and the connect operation failed with `notes.channel.manifest_missing`.
+ * A connection that the owner removed answers `notes.connection.removed` instead (`stopReason`).
  */
 export function isConnectionGone(error: unknown): boolean {
   return error instanceof EdgeError && (error.code === NOTES_CODES.connectionNotFound || error.code === NOTES_CODES.manifestMissing);

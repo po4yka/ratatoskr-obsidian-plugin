@@ -3,7 +3,7 @@ import type { Transport } from '../api/http';
 import { MAX_BATCH_CHANGES } from '../api/notes';
 import { Batcher, DeviceSequence } from './batcher';
 import { Channel, StaleBytesError } from './channel';
-import { connectVault, isConnectionGone, isMismatch } from './connect';
+import { connectVault, isConnectionGone, stopReason } from './connect';
 import { chooseCredentialStore } from './credential-store';
 import type { CredentialEnvironment } from './credentials';
 import { DeviceSession } from './session';
@@ -179,7 +179,7 @@ export class RatatoskrCore {
     const changes = this.#state.outbox.slice(0, MAX_BATCH_CHANGES);
     const outcome = await channel.send(changes);
     if (outcome.kind === 'mismatch') {
-      this.#stop();
+      this.#stop('channel_mismatch');
       return;
     }
     const waiting = this.#state.outbox.length;
@@ -207,9 +207,11 @@ export class RatatoskrCore {
     this.#state.needsManifest = false;
   }
 
-  /** `notes.channel_mismatch` on any route: another device owns the connection. Stop sending. */
-  #stop(): void {
-    Object.assign(this.#state, { blocked: 'channel_mismatch', outbox: [] });
+  /** A channel mismatch or a removal by the owner, on any route: stop sending until the owner acts. */
+  #stop(blocked: 'channel_mismatch' | 'removed' | null): void {
+    if (blocked !== null) {
+      Object.assign(this.#state, { blocked, outbox: [] });
+    }
   }
 
   #commit(committed: number): void {
@@ -226,9 +228,7 @@ export class RatatoskrCore {
       if (error instanceof StaleBytesError) {
         this.#state.needsManifest = true;
       }
-      if (isMismatch(error)) {
-        this.#stop();
-      }
+      this.#stop(stopReason(error));
       this.#error = error instanceof Error ? error.message : String(error);
     } finally {
       await this.#save();

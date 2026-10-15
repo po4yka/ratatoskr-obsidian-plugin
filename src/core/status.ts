@@ -22,6 +22,9 @@ const BLOCKED: Record<NonNullable<PluginState['blocked']>, string> = {
   channel_mismatch:
     'Stopped: this vault is connected to Ratatoskr from another device. ' +
     'Use Obsidian Sync to share a vault between devices.',
+  removed:
+    'Stopped: the owner removed this connection in Ratatoskr. The plugin sends no changes. ' +
+    'To send again, select Connect in the settings.',
 };
 
 /** One line for the status bar and the settings tab. It names no credential and no content. */
