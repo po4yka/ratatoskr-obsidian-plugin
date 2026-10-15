@@ -41,6 +41,20 @@ describe('the limits of the desktop transport', () => {
     await expect(nodeTransport()(manifestTo(origin))).rejects.toThrow(/8 MiB/);
   });
 
+  it('a file answer may pass 8 MiB and stops at 64 MiB', async () => {
+    expect(TRANSPORT_LIMITS.maxContentBytes).toBe(64 * 1024 * 1024);
+    const origin = await serve((response) => {
+      response.writeHead(200, { 'Content-Type': 'application/octet-stream' });
+      response.end(Buffer.alloc(response.req.url === '/large' ? TRANSPORT_LIMITS.maxContentBytes + 1 : TRANSPORT_LIMITS.maxBodyBytes + 1));
+    });
+    const content = (path: string): HttpRequest => ({ origin, method: 'GET', path, headers: {}, answer: 'bytes' });
+
+    const answer = await nodeTransport()(content('/medium'));
+
+    expect(answer.bytes?.length).toBe(TRANSPORT_LIMITS.maxBodyBytes + 1);
+    await expect(nodeTransport()(content('/large'))).rejects.toThrow(/64 MiB/);
+  });
+
   it('a slow answer stops at the total deadline', async () => {
     // One byte each 20 ms keeps the idle timeout from firing; only the deadline can stop it.
     const origin = await serve((response) => {
