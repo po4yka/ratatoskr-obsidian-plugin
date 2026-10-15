@@ -33,12 +33,14 @@ function needsBytes(file: { path: string; sha256?: string; length_bytes?: number
   );
 }
 
-/** The route template of a path: the ids in it become `{id}`, `{token}` and `{index}`. */
+/** The route template of a path: the ids in it become `{id}`, `{token}`, `{index}` and `{operation}`, and the query goes. */
 export function routeOf(path: string): string {
   return path
+    .replace(/\?.*$/, '')
     .replace(/^\/v1\/notes\/connections\/[^/]+/, '/v1/notes/connections/{id}')
     .replace(/\/blobs\/[^/]+/, '/blobs/{token}')
-    .replace(/\/chunks\/[^/]+$/, '/chunks/{index}');
+    .replace(/\/chunks\/[^/]+$/, '/chunks/{index}')
+    .replace(/\/device-operations\/[^/]+/, '/device-operations/{operation}');
 }
 
 type Route = (request: HttpRequest, body: Record<string, unknown>) => HttpResponse;

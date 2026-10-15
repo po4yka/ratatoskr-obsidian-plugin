@@ -12,7 +12,10 @@ export interface Running {
   reopen(): Promise<RatatoskrCore>;
 }
 
-export async function startPlugin(edge: FakeEdge, setup: { files?: Record<string, string>; reader?: (vault: TestVault) => VaultReader } = {}): Promise<Running> {
+export async function startPlugin(
+  edge: FakeEdge,
+  setup: { files?: Record<string, string>; reader?: (vault: TestVault) => VaultReader; app?: CoreOptions['app'] } = {},
+): Promise<Running> {
   const vault = new TestVault();
   for (const [path, text] of Object.entries(setup.files ?? {})) {
     vault.write(path, text);
@@ -26,6 +29,7 @@ export async function startPlugin(edge: FakeEdge, setup: { files?: Record<string
     deviceName: 'Test device',
     edgeOrigin: () => 'https://edge.example',
     credentials: { secretStorage: new FakeSecretStorage() },
+    ...(setup.app === undefined ? {} : { app: setup.app }),
   };
   const core = await RatatoskrCore.open(options);
   await core.pair('PAIR-0001');
