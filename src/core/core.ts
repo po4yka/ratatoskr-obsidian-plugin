@@ -156,7 +156,7 @@ export class RatatoskrCore {
       return null;
     }
     const app = this.#options.app;
-    const writes = app === undefined ? undefined : { app, changed: (event: VaultEvent) => this.accept(event) };
+    const writes = app === undefined ? undefined : { app, changed: (event: VaultEvent) => this.accept(event), results: this.#state.results };
     this.#channel ??= new Channel({ edge: this.#edge, session: this.#session, vault: this.#options.vault, connectionId, writes });
     return this.#channel;
   }

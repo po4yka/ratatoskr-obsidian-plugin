@@ -1,3 +1,4 @@
+import type { DeviceResult } from '../api/notes';
 import type { Change, FileFacts } from './types';
 
 /** `Plugin.loadData` and `Plugin.saveData`. Obsidian writes them to `data.json` in the vault. */
@@ -24,6 +25,8 @@ export interface PluginState {
   blocked: Blocked | null;
   /** The plugin cannot prove that it saw every change, so the next send starts with a manifest. */
   needsManifest: boolean;
+  /** The results of the device queue that did not reach notes yet, by operation id. No file content. */
+  results: Record<string, DeviceResult>;
 }
 
 export type Blocked = 'sync' | 'cli' | 'channel_mismatch' | 'removed';
@@ -37,6 +40,7 @@ export function emptyState(): PluginState {
     known: {},
     blocked: null,
     needsManifest: false,
+    results: {},
   };
 }
 

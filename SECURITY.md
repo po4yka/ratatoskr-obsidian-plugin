@@ -14,7 +14,8 @@ Baseline:
   On desktop they go into `app.secretStorage`, or into `remote.safeStorage` ciphertext in the local
   storage of the app profile. Where neither exists, they stay in memory only.
 - `data.json` holds no secret. It holds the Edge address, the connection id, the device sequence and
-  the changes that are not committed yet.
+  the changes that are not committed yet, and the results of writes from Ratatoskr that did not
+  reach Ratatoskr yet (outcomes, paths and hashes, no file content).
 - The plugin talks only to the Edge address that the owner saves, over HTTPS. A request with a
   credential goes only to the Edge origin of the pairing.
 - On desktop, the plugin sends with the Node `http` and `https` clients, loaded through

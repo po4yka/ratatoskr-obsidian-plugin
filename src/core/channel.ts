@@ -2,9 +2,12 @@ import type { Auth, EdgeClient } from '../api/edge';
 import { EdgeError } from '../api/http';
 import { MAX_BATCH_CHANGES, NOTES_CODES, type DeviceResult, type ManifestEntry } from '../api/notes';
 import { DeviceQueue } from './device-queue';
+import { StaleBytesError } from './errors';
 import { factsOfBytes } from './hash';
 import type { DeviceSession } from './session';
 import type { Change, FileFacts, VaultApp, VaultEvent, VaultReader } from './types';
+
+export { StaleBytesError } from './errors';
 
 /** The size that the plugin asks for. The answer of the open call decides the real size. */
 const CHUNK_BYTES = 1024 * 1024;
@@ -12,10 +15,6 @@ const CHUNK_BYTES = 1024 * 1024;
 /** The SHA-256 of no bytes. The transfer contract refuses 0 bytes, and notes stores this blob itself. */
 const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
-/** The bytes of a change are not on disk any more. Only a manifest can describe the vault now. */
-export class StaleBytesError extends Error {
-  override readonly name = 'StaleBytesError';
-}
 
 /** What a batch did: committed up to a sequence, or refused for a gap or a channel mismatch. */
 export type BatchOutcome =
@@ -40,7 +39,14 @@ export interface ChannelParts {
   readonly session: DeviceSession;
   readonly vault: VaultReader;
   readonly connectionId: string;
-  readonly writes?: { readonly app: VaultApp; readonly changed: (event: VaultEvent) => Promise<void> } | undefined;
+  readonly writes?: ChannelWrites | undefined;
+}
+
+/** The vault API, the change channel, and the kept results of the device queue (`QueueParts.results`). */
+export interface ChannelWrites {
+  readonly app: VaultApp;
+  readonly changed: (event: VaultEvent) => Promise<void>;
+  readonly results: Record<string, DeviceResult>;
 }
 
 /** The calls of one connection: manifest, uploads, change batches and the device queue. */
@@ -48,8 +54,6 @@ export class Channel {
   readonly #parts: ChannelParts;
   /** The most changes of one request. A `batch_too_large` answer lowers it. */
   #limit = MAX_BATCH_CHANGES;
-  /** The results of the device queue that did not reach notes yet, by operation id. */
-  readonly #results = new Map<string, DeviceResult>();
 
   constructor(parts: ChannelParts) {
     this.#parts = parts;
@@ -59,7 +63,7 @@ export class Channel {
   async pull(now: number): Promise<void> {
     const writes = this.#parts.writes;
     if (writes !== undefined) {
-      await new DeviceQueue({ ...this.#parts, ...writes, results: this.#results, upload: (blob) => this.#upload(blob) }).pull(now);
+      await new DeviceQueue({ ...this.#parts, ...writes, upload: (blob) => this.#upload(blob) }).pull(now);
     }
   }
 

@@ -2,6 +2,7 @@ import type { Auth, EdgeClient } from '../api/edge';
 import { EdgeError } from '../api/http';
 import { NOTES_CODES, type DeviceOperation, type DeviceOperationPage, type DeviceResult } from '../api/notes';
 import { applyOperation } from './apply-operation';
+import { StaleBytesError } from './errors';
 import { factsOfBytes } from './hash';
 import type { DeviceSession } from './session';
 import { pathOfHash, rewriteTargets, rewritesToUpload, staleFiles } from './rewrites';
@@ -19,10 +20,10 @@ export interface QueueParts {
   /** Gives one vault event to the change channel. */
   readonly changed: (event: VaultEvent) => Promise<void>;
   /**
-   * The results that did not reach notes, by operation id. The channel keeps them from one pull to
-   * the next, so that an operation is reported again and not applied again.
+   * The results that did not reach notes, by operation id. The plugin data keeps them from one pull
+   * to the next and over a restart, so that an operation is reported again and not applied again.
    */
-  readonly results: Map<string, DeviceResult>;
+  readonly results: Record<string, DeviceResult>;
 }
 
 /**
@@ -40,14 +41,20 @@ export class DeviceQueue {
 
   /** `now` is the injected clock of the vault event that a base mismatch gives to the change channel. */
   async pull(now: number): Promise<void> {
+    const listed = new Set<string>();
     let after: string | null = null;
     let page = await this.#list(after);
     while (page.operations.length > 0 && page.next_cursor !== after) {
       for (const operation of page.operations) {
+        listed.add(operation.operation_id);
         await this.#settle(operation, now);
       }
       after = page.next_cursor;
       page = await this.#list(after);
+    }
+    // The whole queue was read: a kept result of an operation that it does not list has ended.
+    for (const operationId of Object.keys(this.#parts.results).filter((id) => !listed.has(id))) {
+      Reflect.deleteProperty(this.#parts.results, operationId);
     }
   }
 
@@ -56,7 +63,7 @@ export class DeviceQueue {
   }
 
   async #settle(operation: DeviceOperation, now: number): Promise<void> {
-    const kept = this.#parts.results.get(operation.operation_id);
+    const kept = Object.hasOwn(this.#parts.results, operation.operation_id) ? this.#parts.results[operation.operation_id] : undefined;
     if (kept !== undefined) {
       await this.#report(operation, kept);
       return;
@@ -83,12 +90,21 @@ export class DeviceQueue {
 
   /**
    * Reports the result. Notes records nothing on a `5xx` and settles the rest of a group on a retry:
-   * until it answers `200`, the result stays in `results`, and the next pull sends it again.
+   * until it answers `200`, the result stays in `results`, and the next pull sends it again. A result
+   * that notes can never accept (`neverAccepted`) is dropped, and the next pull checks the operation
+   * again, so that one result never blocks the queue.
    */
   async #report(operation: DeviceOperation, result: DeviceResult): Promise<void> {
-    this.#parts.results.set(operation.operation_id, result);
-    await this.#send(operation, result);
-    this.#parts.results.delete(operation.operation_id);
+    this.#parts.results[operation.operation_id] = result;
+    try {
+      await this.#send(operation, result);
+    } catch (error) {
+      if (neverAccepted(error)) {
+        Reflect.deleteProperty(this.#parts.results, operation.operation_id);
+      }
+      throw error;
+    }
+    Reflect.deleteProperty(this.#parts.results, operation.operation_id);
   }
 
   /**
@@ -127,6 +143,17 @@ export class DeviceQueue {
     const { edge, session, connectionId } = this.#parts;
     return session.call((auth) => run(edge, { auth, connectionId }));
   }
+}
+
+/**
+ * Whether notes can never accept the result: a `4xx` other than `401` (the session renews), `408`,
+ * `409` (bytes to upload) and `429`, or bytes to upload that the file no longer has.
+ */
+function neverAccepted(error: unknown): boolean {
+  if (error instanceof StaleBytesError) {
+    return true;
+  }
+  return error instanceof EdgeError && error.status >= 400 && error.status < 500 && ![401, 408, 409, 429].includes(error.status);
 }
 
 /** The hashes of a `notes.channel.bytes_missing` answer, or `undefined` for another failure. */

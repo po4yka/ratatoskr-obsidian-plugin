@@ -72,6 +72,7 @@ the credential. `data.json` keeps only these fields:
 | `state.known` | The path, SHA-256 and length of each file that Ratatoskr has. |
 | `state.blocked` | Why the plugin sends nothing: `sync`, `cli` or `channel_mismatch`, or `null`. |
 | `state.needsManifest` | `true` when the plugin must send a manifest before the next batch. |
+| `state.results` | The results of writes from Ratatoskr that did not reach Ratatoskr yet, by operation id: outcomes, paths of linking notes, and hashes. No file content. |
 
 ## What the plugin sends
 
@@ -190,10 +191,14 @@ on. The plugin reads the queue and applies each write to the vault.
   change.
 - **When the plugin stops.** When the download, the report or the upload fails, the plugin stops
   the queue at that write and tries again at the next flush. A result that did not reach Ratatoskr
-  (an error `5xx` or a network error) stays in memory, and the next flush sends the same result
-  again, until Ratatoskr answers `200`. The plugin does not apply that write a second time. A write
-  stays in the queue until Ratatoskr has its result, so the plugin keeps no cursor between two
-  flushes.
+  (for example an error `5xx` or a network error) stays in `data.json`, and the next flush sends
+  the same result again, also after a restart, until Ratatoskr answers `200`. The plugin does not
+  apply that write a second time. Two cases are different, so that one result never stops the
+  queue: when Ratatoskr refuses the result with an error `4xx` other than `401`, `408`, `409` and
+  `429`, or names bytes that the file no longer has, the plugin drops the result and checks the
+  write again at the next flush. When a full read of the queue no longer lists a write, the plugin
+  drops its result. A write stays in the queue until Ratatoskr has its result, so the plugin keeps
+  no cursor between two flushes.
 
 ## When the plugin sends nothing
 
