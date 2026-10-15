@@ -8,16 +8,20 @@ export type ErrorEnvelope = components['schemas']['ErrorEnvelope'];
  */
 export interface HttpRequest {
   readonly origin: string;
-  readonly method: 'POST' | 'PUT';
+  readonly method: 'GET' | 'POST' | 'PUT';
   readonly path: string;
   readonly headers: Readonly<Record<string, string>>;
   readonly body?: string | Uint8Array;
+  /** `bytes`: a 2xx answer is the bytes of a file, not JSON, and can be as large as a file. */
+  readonly answer?: 'bytes';
 }
 
 /** The answer. `body` is the parsed JSON, or `null` when the answer has no JSON body. */
 export interface HttpResponse {
   readonly status: number;
   readonly body: unknown;
+  /** The bytes of a 2xx answer to a request for `bytes`. */
+  readonly bytes?: Uint8Array;
 }
 
 /** The Node client on desktop and Obsidian `requestUrl` on mobile (`platformTransport`); the tests use a fake Edge. */

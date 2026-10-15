@@ -84,6 +84,7 @@ export default class RatatoskrPlugin extends Plugin {
         return config.deviceName;
       },
       vault: vaultReader(this.app),
+      app: this.app,
       vaultKey: (this.app as App & { appId?: string }).appId ?? this.app.vault.getName(),
       vaultName: this.app.vault.getName(),
       credentials: credentialEnvironment(this.app),
@@ -125,6 +126,9 @@ const requestUrlTransport: Transport = async (request): Promise<HttpResponse> =>
   const origin = edgeOrigin(request.origin);
   const body = typeof request.body === 'string' || request.body === undefined ? request.body : request.body.slice().buffer;
   const response = await requestUrl({ url: `${origin}${request.path}`, method: request.method, headers: { ...request.headers }, ...(body === undefined ? {} : { body }), throw: false });
+  if (request.answer === 'bytes' && response.status >= 200 && response.status < 300) {
+    return { status: response.status, body: null, bytes: new Uint8Array(response.arrayBuffer) };
+  }
   return { status: response.status, body: parseJson(response.text) };
 };
 

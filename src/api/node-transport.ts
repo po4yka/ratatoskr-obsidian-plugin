@@ -10,13 +10,15 @@ export interface NodeClients {
 /** The limits of one request: the size of the answer body, the total time, and the time of silence. */
 export interface TransportLimits {
   readonly maxBodyBytes: number;
+  /** The size of an answer of file bytes: the default size limit of a file in `ratatoskr-notes`. */
+  readonly maxContentBytes: number;
   readonly deadlineMs: number;
   readonly idleMs: number;
 }
 
 const MIB = 1024 * 1024;
 
-export const TRANSPORT_LIMITS: TransportLimits = { maxBodyBytes: 8 * MIB, deadlineMs: 60_000, idleMs: 30_000 };
+export const TRANSPORT_LIMITS: TransportLimits = { maxBodyBytes: 8 * MIB, maxContentBytes: 64 * MIB, deadlineMs: 60_000, idleMs: 30_000 };
 
 /** The Node clients of this runtime, or `undefined` where there is no Node (Obsidian mobile). */
 export function nodeClients(): NodeClients | undefined {
@@ -45,13 +47,14 @@ export function nodeTransport(clients: NodeClients | undefined = nodeClients(), 
         return;
       }
       const client = url.protocol === 'https:' ? clients.https : clients.http;
+      const max = request.answer === 'bytes' ? limits.maxContentBytes : limits.maxBodyBytes;
       const outgoing = client.request(url, { method: request.method, headers: { ...request.headers } }, (incoming) => {
         const chunks: Buffer[] = [];
         let size = 0;
         incoming.on('data', (chunk: Buffer) => {
           size += chunk.length;
-          if (size > limits.maxBodyBytes) {
-            fail(new Error(`the answer of Edge is larger than ${limits.maxBodyBytes / MIB} MiB`));
+          if (size > max) {
+            fail(new Error(`the answer of Edge is larger than ${max / MIB} MiB`));
             return;
           }
           chunks.push(chunk);
@@ -59,7 +62,10 @@ export function nodeTransport(clients: NodeClients | undefined = nodeClients(), 
         incoming.on('error', fail);
         incoming.on('end', () => {
           clearTimeout(deadline);
-          resolve(answer(incoming.statusCode ?? 0, Buffer.concat(chunks).toString('utf8')));
+          const status = incoming.statusCode ?? 0;
+          const body = Buffer.concat(chunks);
+          const bytes = request.answer === 'bytes' && status >= 200 && status < 300;
+          resolve(bytes ? { status, body: null, bytes: new Uint8Array(body) } : answer(status, body.toString('utf8')));
         });
       });
       // The idle timeout stops a silent Edge; the deadline also stops one that sends a byte at a time.

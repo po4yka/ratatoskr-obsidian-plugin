@@ -33,3 +33,30 @@ export interface VaultReader {
   read(path: string): Promise<Uint8Array>;
   list(): Promise<string[]>;
 }
+
+/** A file of the vault API (`TFile`). */
+export interface VaultFile {
+  readonly path: string;
+}
+
+/**
+ * The part of the Obsidian `app` that applies a write of Ratatoskr: `app.vault` and
+ * `app.fileManager`. `src/main.ts` gives the app itself; the tests give a fake.
+ */
+export interface VaultApp {
+  readonly vault: {
+    getFileByPath(path: string): VaultFile | null;
+    getFolderByPath(path: string): unknown;
+    readBinary(file: VaultFile): Promise<ArrayBuffer>;
+    modifyBinary(file: VaultFile, data: ArrayBuffer): Promise<void>;
+    createBinary(path: string, data: ArrayBuffer): Promise<VaultFile>;
+    createFolder(path: string): Promise<unknown>;
+    /** Moves the file to a trash: of the operating system when `system` is `true`, else `.trash` in the vault. */
+    trash(file: VaultFile, system: boolean): Promise<void>;
+  };
+  readonly fileManager: {
+    /** Renames or moves a file, and updates the links to it by the settings of the vault. */
+    renameFile(file: VaultFile, newPath: string): Promise<void>;
+    processFrontMatter(file: VaultFile, fn: (frontmatter: Record<string, unknown>) => void): Promise<void>;
+  };
+}

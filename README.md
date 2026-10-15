@@ -1,8 +1,9 @@
 # Ratatoskr Obsidian Plugin
 
 This plugin connects an Obsidian vault to your Ratatoskr. It sends each change of a file in the vault
-to Ratatoskr through Edge. Use it for a vault that does not use Obsidian Sync. For a vault that uses
-Obsidian Sync, Ratatoskr reads the vault through Sync, and the plugin shows status only.
+to Ratatoskr through Edge, and it applies the changes that you make in Ratatoskr to the vault. Use
+it for a vault that does not use Obsidian Sync. For a vault that uses Obsidian Sync, Ratatoskr reads
+the vault through Sync, and the plugin shows status only.
 
 - Development: `DEVELOPMENT.md`
 - Architecture: `docs/ARCHITECTURE.md`
@@ -79,7 +80,7 @@ for a request with a credential. The transport is different on each platform:
 
 | Platform | Transport | Redirect | Limits |
 |---|---|---|---|
-| Desktop, with `process.getBuiltinModule` (Node 20.16 or later) | The Node `http` and `https` clients. | Not followed. A 3xx answer is refused, and nothing goes to the new address. | The answer body stops at 8 MiB. A request stops after 30 s without data, and after 60 s in total. |
+| Desktop, with `process.getBuiltinModule` (Node 20.16 or later) | The Node `http` and `https` clients. | Not followed. A 3xx answer is refused, and nothing goes to the new address. | The answer body stops at 8 MiB, and at 64 MiB for the bytes of a write. A request stops after 30 s without data, and after 60 s in total. |
 | Desktop, without `process.getBuiltinModule` | None. The plugin sends no request, the pairing included, and reads no file for a manifest. The status line asks you to update Obsidian. | Not applicable. | Not applicable. |
 | Mobile | Obsidian `requestUrl`, the only transport that the app has. | Followed. `requestUrl` does not report the final address, so the plugin cannot refuse a redirect, and a request with a credential goes to the address of the redirect. | The limits of `requestUrl`. |
 
@@ -93,6 +94,9 @@ It sends:
 | `POST /v1/notes/connections/{id}/manifest` | The path, SHA-256 and length of each file in the vault. |
 | `/v1/notes/connections/{id}/blobs` | The bytes of a file, in chunks, only when Ratatoskr names their SHA-256 as missing. |
 | `POST /v1/notes/connections/{id}/changes` | Up to 256 changes. Each change has the path, the kind (`created`, `updated`, `renamed` with the path before the rename in `previous_path`, or `deleted`), the SHA-256 and length of the new bytes (not for `deleted`), and the device sequence. |
+| `GET /v1/notes/connections/{id}/device-operations?after=<cursor>` | The cursor of the last page that the plugin read, exactly as Ratatoskr sent it. Nothing for the first page. |
+| `GET /v1/notes/connections/{id}/device-operations/{operation_id}/content` | Nothing. The answer is the bytes of a write. |
+| `POST /v1/notes/connections/{id}/device-operations/{operation_id}/result` | The result of one write: `applied` with the SHA-256 of the file after the write (none after a delete), `base_mismatch` with the SHA-256 of the local file (`null` when there is no file), or `failed` with a code. |
 
 How the plugin makes the changes:
 
@@ -122,7 +126,53 @@ How the plugin sends the bytes:
   `notes.connection.not_found`. The plugin then connects the vault again, sends a manifest to the
   new connection, and starts the device sequence of that connection at 1.
 
+## How the plugin applies a change from Ratatoskr
+
+When you create, edit, rename, move or delete a note in Ratatoskr, or set a property, Ratatoskr
+keeps the change as a write in a queue of the connection. The write mode of the connection must be
+on. The plugin reads the queue and applies each write to the vault.
+
+- **When.** At each flush (every 5 seconds while Obsidian is open), after the plugin sent the
+  waiting changes. A phone reads the queue when Obsidian is open on it. Until then, Ratatoskr shows
+  the write as waiting for the device.
+- **Order.** The plugin reads the queue from the start, page by page. It sends the cursor back
+  exactly as Ratatoskr sent it. It applies and reports each write before the next one.
+- **The base check.** Each write names the SHA-256 that the local file must have (for a new file:
+  no file). Before a write, the plugin compares that hash with the local file. When they differ,
+  you changed the file on this device after Ratatoskr read it. Then the plugin does not change the
+  file. It reports `base_mismatch` with the hash of the local file, and it sends the local file as
+  a change. Ratatoskr shows a conflict, and you select the result in Ratatoskr.
+- **How.** The plugin uses the vault API of Obsidian:
+
+  | Write | Vault API |
+  |---|---|
+  | `create` | `vault.createBinary`. It creates the folder first when the folder does not exist. |
+  | `update` | `vault.modifyBinary`. |
+  | `rename`, `move` | `fileManager.renameFile`. Obsidian updates the links to the file by the settings of the vault, as for a rename that you make in Obsidian. |
+  | `delete` | `vault.trash` to the trash of the system, or to `.trash` in the vault. The plugin never deletes a file permanently. |
+  | `set_property` | `fileManager.processFrontMatter`. It sets one property to the value from Ratatoskr, or removes it. |
+
+  The plugin downloads the bytes of a write only after the base check, and it uses them only when
+  they have the SHA-256 that Ratatoskr named.
+- **The result.** After a write, the plugin reports `applied` with the SHA-256 of the file (of the
+  new path after a rename or a move; no hash after a delete). When Ratatoskr does not have those
+  bytes, for example after a property change, or after another plugin changed the file on save, it
+  answers `notes.channel.bytes_missing`. The plugin then uploads the bytes and reports again. When
+  the vault API refuses a write, for example a rename to a path that has a file, the plugin reports
+  `failed` with `notes.channel.refused`. For a write of a kind that the plugin does not know, it
+  reports `failed` with `notes.write.unsupported`. In both cases the file in Ratatoskr does not
+  change.
+- **The echo.** Obsidian reports the change of each write as a vault event, and the plugin sends it
+  as a change, as for an edit that you make. Ratatoskr takes that change as the confirmation of its
+  write, not as a new edit. Each note whose links Obsidian updated after a rename is an `updated`
+  change.
+- **When the plugin stops.** When the download, the report or the upload fails, the plugin stops
+  the queue at that write and tries again at the next flush. A write stays in the queue until
+  Ratatoskr has its result, so the plugin keeps no cursor between two flushes.
+
 ## When the plugin sends nothing
+
+In each of these cases, the plugin also applies no write from Ratatoskr.
 
 - **The vault uses Obsidian Sync.** When the vault already has a `sync` connection, the plugin shows
   status only. It sends no change, because each change would arrive two times.
@@ -155,3 +205,11 @@ How the plugin sends the bytes:
 Ratatoskr cannot read files outside the vault. It cannot read your Obsidian account, your Obsidian
 Sync password, or other vaults. Ratatoskr stores a revision for each change, and it makes an index
 of the notes, their links and their tags.
+
+## What Ratatoskr can change
+
+When the write mode of the connection is on, Ratatoskr can create, change, rename, move and delete
+files of the vault, and set or remove a property of a note, through the vault API. It changes a file
+only when the file has the hash that Ratatoskr read before. A delete moves the file to a trash. The
+plugin never writes the `.obsidian` configuration folder for Ratatoskr, because Ratatoskr does not
+send a write for it.

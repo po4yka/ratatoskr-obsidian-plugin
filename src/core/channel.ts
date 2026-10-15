@@ -1,9 +1,10 @@
 import type { Auth, EdgeClient } from '../api/edge';
 import { EdgeError } from '../api/http';
 import { MAX_BATCH_CHANGES, NOTES_CODES, type ManifestEntry } from '../api/notes';
+import { DeviceQueue } from './device-queue';
 import { factsOfBytes } from './hash';
 import type { DeviceSession } from './session';
-import type { Change, FileFacts, VaultReader } from './types';
+import type { Change, FileFacts, VaultApp, VaultEvent, VaultReader } from './types';
 
 /** The size that the plugin asks for. The answer of the open call decides the real size. */
 const CHUNK_BYTES = 1024 * 1024;
@@ -33,14 +34,31 @@ interface Blob {
 
 const nfc = (path: string): string => path.normalize('NFC');
 
-/** The calls of one connection: manifest, uploads and change batches. */
+/** What a channel needs. `writes`: the vault API and the change channel, to apply the writes of Ratatoskr. */
+export interface ChannelParts {
+  readonly edge: EdgeClient;
+  readonly session: DeviceSession;
+  readonly vault: VaultReader;
+  readonly connectionId: string;
+  readonly writes?: { readonly app: VaultApp; readonly changed: (event: VaultEvent) => Promise<void> } | undefined;
+}
+
+/** The calls of one connection: manifest, uploads, change batches and the device queue. */
 export class Channel {
-  readonly #parts: { edge: EdgeClient; session: DeviceSession; vault: VaultReader; connectionId: string };
+  readonly #parts: ChannelParts;
   /** The most changes of one request. A `batch_too_large` answer lowers it. */
   #limit = MAX_BATCH_CHANGES;
 
-  constructor(parts: { edge: EdgeClient; session: DeviceSession; vault: VaultReader; connectionId: string }) {
+  constructor(parts: ChannelParts) {
     this.#parts = parts;
+  }
+
+  /** Applies the operations of the device queue in order and reports each one. Without the vault API, it does nothing. */
+  async pull(now: number): Promise<void> {
+    const writes = this.#parts.writes;
+    if (writes !== undefined) {
+      await new DeviceQueue({ ...this.#parts, ...writes, upload: (blob) => this.#upload(blob) }).pull(now);
+    }
   }
 
   /** Sends a manifest of every file, uploads the bytes that it needs, and returns the facts. */

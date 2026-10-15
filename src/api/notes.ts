@@ -6,6 +6,8 @@
 // connect.rs` (`ConnectRequest` and `ConnectAccepted`), `services/notes/src/channel.rs`
 // (`DeviceChange`) and its README section "Device channels". Replace them with generated types when
 // the contract carries the routes. The blob routes use the transfer shapes of the pinned contract.
+// The device queue of a write (workspace change `add-notes-write-back`, design D5) follows
+// `services/notes/src/api/device_operations.rs`.
 import type { Change } from '../core/types';
 
 /** `POST /v1/notes/connections`, channel `plugin`. The notes service refuses unknown fields. */
@@ -63,6 +65,54 @@ export interface ManifestAnswer {
 
 export const MAX_BATCH_CHANGES = 256;
 
+/** A notes-owned `BlobRef`: the bytes of an operation, which `.../content` streams. */
+export interface BlobRef {
+  readonly owner_service: string;
+  readonly digest: { readonly algorithm: 'sha256'; readonly hex: string };
+  readonly media_type: string;
+  readonly length_bytes: number;
+}
+
+/**
+ * One operation of the device queue. A conflict resolution arrives as an `update`, or as a `create`
+ * of a file that was deleted. `base_hash` is the hash that the local file must have (`null`: no file).
+ */
+export interface DeviceOperation {
+  readonly operation_id: string;
+  readonly cursor: string;
+  readonly kind: 'create' | 'update' | 'rename' | 'move' | 'delete' | 'set_property';
+  readonly path: string;
+  readonly target_path: string | null;
+  readonly base_hash: string | null;
+  /** The bytes to write, or the JSON value of a `set_property`. */
+  readonly content: BlobRef | null;
+  readonly property_key: string | null;
+  readonly property_change: 'set' | 'remove' | null;
+  readonly expected_sha256: string | null;
+}
+
+/** `GET /v1/notes/connections/{id}/device-operations?after=<cursor>`: at most 256, in delivery order. */
+export interface DeviceOperationPage {
+  readonly operations: readonly DeviceOperation[];
+  /** Opaque: the plugin sends it back exactly as it is. */
+  readonly next_cursor: string;
+}
+
+/**
+ * `POST .../device-operations/{operation_id}/result`. `sha256` is the hash of the file at the path,
+ * or at the target of a rename or a move; a delete has none. Notes refuses unknown fields.
+ */
+export type DeviceResult =
+  | { readonly outcome: 'applied'; readonly sha256?: string }
+  | { readonly outcome: 'base_mismatch'; readonly local_sha256: string | null }
+  | { readonly outcome: 'failed'; readonly code: string };
+
+/** The answer to a result: the state of the write in notes. */
+export interface DeviceResultAnswer {
+  readonly operation_id: string;
+  readonly state: 'succeeded' | 'failed' | 'delivering';
+}
+
 /** The error codes that the plugin acts on, and the envelope fields that they carry. */
 export const NOTES_CODES = {
   /** Carries `connection_id` and `channel` (`sync`, `plugin` or `cli`). */
@@ -71,7 +121,7 @@ export const NOTES_CODES = {
   channelMismatch: 'notes.channel_mismatch',
   /** Carries `committed_sequence`. Nothing of the batch was committed. */
   sequenceGap: 'notes.channel.sequence_gap',
-  /** Carries `missing_sha256`. Nothing of the batch was committed. */
+  /** Carries `missing_sha256`. Nothing of the batch was committed, or the result was not recorded. */
   bytesMissing: 'notes.channel.bytes_missing',
   /** `413`, carries `max_changes`. Nothing of the batch was committed. */
   batchTooLarge: 'notes.channel.batch_too_large',

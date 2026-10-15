@@ -5,29 +5,16 @@ import { Batcher, DeviceSequence } from './batcher';
 import { Channel, StaleBytesError } from './channel';
 import { connectVault, isConnectionGone, stopReason } from './connect';
 import { chooseCredentialStore } from './credential-store';
-import type { CredentialEnvironment } from './credentials';
+import type { CoreOptions } from './options';
 import { DeviceSession } from './session';
-import { loadState, type DataHost, type PluginState } from './state';
+import { loadState, type PluginState } from './state';
 import { statusText } from './status';
-import type { VaultEvent, VaultReader } from './types';
+import type { VaultEvent } from './types';
 
+export type { CoreOptions } from './options';
 export type { VaultReader } from './types';
 
-export interface CoreOptions {
-  readonly host: DataHost;
-  /** `null`: this app cannot send safely (a desktop app without the Node clients). Nothing is sent. */
-  readonly transport: Transport | null;
-  readonly vault: VaultReader;
-  /** The vault id of Obsidian (`app.appId`) and the vault name. */
-  readonly vaultKey: string;
-  readonly vaultName: string;
-  readonly deviceName: string;
-  readonly credentials: CredentialEnvironment;
-  /** The origin of the saved Edge address, `https://host[:port]`. It throws for an invalid one. */
-  readonly edgeOrigin: () => string;
-}
-
-/** The plugin without Obsidian: pairing, connect, manifest, uploads and change batches. */
+/** The plugin without Obsidian: pairing, connect, manifest, uploads, change batches and the writes of Ratatoskr. */
 export class RatatoskrCore {
   readonly #options: CoreOptions;
   readonly #edge: EdgeClient;
@@ -133,6 +120,10 @@ export class RatatoskrCore {
         await this.#reconcileIfNeeded();
         await this.#sendOutbox();
       }
+      // After the changes: the echo of a write that the last pull applied acknowledges it first.
+      if (this.#state.blocked === null) {
+        await this.#currentChannel()?.pull(now);
+      }
     });
   }
 
@@ -164,7 +155,9 @@ export class RatatoskrCore {
     if (connectionId === null || !canSend) {
       return null;
     }
-    this.#channel ??= new Channel({ edge: this.#edge, session: this.#session, vault: this.#options.vault, connectionId });
+    const app = this.#options.app;
+    const writes = app === undefined ? undefined : { app, changed: (event: VaultEvent) => this.accept(event) };
+    this.#channel ??= new Channel({ edge: this.#edge, session: this.#session, vault: this.#options.vault, connectionId, writes });
     return this.#channel;
   }
 

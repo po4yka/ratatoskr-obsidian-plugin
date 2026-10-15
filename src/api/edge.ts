@@ -1,10 +1,13 @@
 import type { components } from './generated/schema';
-import { EdgeError, type HttpRequest, type Transport } from './http';
+import { EdgeError, type HttpRequest, type HttpResponse, type Transport } from './http';
 import type {
   BatchCommitted,
   ChangeBatch,
   ConnectAccepted,
   ConnectRequest,
+  DeviceOperationPage,
+  DeviceResult,
+  DeviceResultAnswer,
   Manifest,
   ManifestAnswer,
 } from './notes';
@@ -44,6 +47,8 @@ export interface Chunk {
 }
 
 const connectionPath = (id: string): string => `/v1/notes/connections/${encodeURIComponent(id)}`;
+const operationPath = (call: { connectionId: string; operationId: string }): string =>
+  `${connectionPath(call.connectionId)}/device-operations/${encodeURIComponent(call.operationId)}`;
 
 /** The Edge routes that the plugin calls. Each method returns the 2xx body or throws `EdgeError`. */
 export class EdgeClient {
@@ -92,27 +97,57 @@ export class EdgeClient {
     return this.#send({ path, auth: call.auth, body: { resumption_token: call.body.token } });
   }
 
-  async #send<T>(request: {
-    method?: 'POST' | 'PUT';
-    path: string;
-    origin?: string;
-    auth?: Auth;
-    body?: unknown;
-    raw?: Uint8Array;
-  }): Promise<T> {
+  /** The operations of the device queue after `after` (from the start when `null`). */
+  listOperations(call: ConnectionCall<{ after: string | null }>): Promise<DeviceOperationPage> {
+    const query = call.body.after === null ? '' : `?after=${encodeURIComponent(call.body.after)}`;
+    return this.#send({ method: 'GET', path: `${connectionPath(call.connectionId)}/device-operations${query}`, auth: call.auth });
+  }
+
+  /** The bytes that an operation puts in the vault. */
+  async readOperationContent(call: ConnectionCall<{ operationId: string }>): Promise<Uint8Array> {
+    const path = `${operationPath({ connectionId: call.connectionId, operationId: call.body.operationId })}/content`;
+    const response = await this.#exchange({ method: 'GET', path, auth: call.auth, answer: 'bytes' });
+    if (response.bytes === undefined) {
+      throw new Error('Edge answered the content of an operation without bytes');
+    }
+    return response.bytes;
+  }
+
+  sendOperationResult(call: ConnectionCall<{ operationId: string; result: DeviceResult }>): Promise<DeviceResultAnswer> {
+    const path = `${operationPath({ connectionId: call.connectionId, operationId: call.body.operationId })}/result`;
+    return this.#send({ path, auth: call.auth, body: call.body.result });
+  }
+
+  async #send<T>(request: EdgeRequest): Promise<T> {
+    return (await this.#exchange(request)).body as T;
+  }
+
+  async #exchange(request: EdgeRequest): Promise<HttpResponse> {
     const http: HttpRequest = {
       origin: originOf(request),
       headers: headersOf(request),
       method: request.method ?? 'POST',
       path: request.path,
       body: request.raw ?? JSON.stringify(request.body),
+      ...(request.answer === undefined ? {} : { answer: request.answer }),
     };
     const response = await this.#transport(http);
     if (response.status < 200 || response.status > 299) {
       throw new EdgeError(response);
     }
-    return response.body as T;
+    return response;
   }
+}
+
+/** One call of the client, before the transport shape. A request without `method` is a `POST`. */
+interface EdgeRequest {
+  readonly method?: HttpRequest['method'];
+  readonly path: string;
+  readonly origin?: string;
+  readonly auth?: Auth;
+  readonly body?: unknown;
+  readonly raw?: Uint8Array;
+  readonly answer?: 'bytes';
 }
 
 /** An authenticated request goes to the origin of its credential, never to another one. */
