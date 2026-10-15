@@ -50,3 +50,27 @@ describe('the paths of an operation', () => {
     expect(results(edge)).toEqual([{ operation: FIRST, body: { outcome: 'applied', sha256: sha('plan\n') } }]);
   });
 });
+
+describe('a file whose name is stored in NFD', () => {
+  // macOS and iOS can keep a file name in NFD. Notes names every path in NFC.
+  it('an NFC path finds the NFD file before a base mismatch', async () => {
+    const stored = 'Notes/Café.md'.normalize('NFD');
+    const update = operation({
+      operation_id: FIRST,
+      kind: 'update',
+      path: 'Notes/Café.md'.normalize('NFC'),
+      base_hash: sha('old\n'),
+      content: blobRef('new\n'),
+      expected_sha256: sha('new\n'),
+    });
+    const edge = new FakeEdge();
+    const queue = { pages: onePage(update), contents: { [FIRST]: 'new\n' } };
+    const { obsidian, core } = await startWithQueue(edge, { files: { [stored]: 'old\n' }, queue });
+
+    await settle(core.flush(1_000));
+
+    expect(obsidian.calls).toEqual([`modifyBinary ${stored}`]);
+    expect(obsidian.files.get(stored)).toBe('new\n');
+    expect(results(edge)).toEqual([{ operation: FIRST, body: { outcome: 'applied', sha256: sha('new\n') } }]);
+  });
+});
