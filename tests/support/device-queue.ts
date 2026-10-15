@@ -100,8 +100,21 @@ export async function startWithQueue(edge: FakeEdge, setup: { files: Record<stri
   const plugin = await startPlugin(edge, { reader: () => obsidian, app: obsidian });
   started.push(plugin);
   obsidian.onEvent = (event) => void plugin.core.accept(event);
-  return { obsidian, core: plugin.core };
+  return { obsidian, core: plugin.core, reopen: plugin.reopen };
 }
+
+/** Answers the results in turn with `answers`: the n-th result gets the n-th answer, and a result after them the answer of notes. */
+export function answerResultsInTurn(edge: FakeEdge, ...answers: (() => HttpResponse)[]): void {
+  const route = edge.routes.get(RESULT);
+  let count = 0;
+  edge.routes.set(RESULT, (request, body): HttpResponse => {
+    const answer = answers[count];
+    count += 1;
+    return answer?.() ?? route?.(request, body) ?? { status: 500, body: null };
+  });
+}
+
+export const UNAVAILABLE = (): HttpResponse => ({ status: 503, body: { code: 'notes.service.unavailable', message: 'Try again.', retryable: true } });
 
 /** The results that reached Edge, in order. */
 export function results(edge: FakeEdge): { operation: string; body: unknown }[] {
