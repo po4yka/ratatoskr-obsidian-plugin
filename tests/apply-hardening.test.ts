@@ -82,3 +82,36 @@ describe('the device already holds the file', () => {
     expect(results(edge)).toEqual([{ operation: FIRST, body: { outcome: 'applied', sha256: sha('beta\n') } }]);
   });
 });
+
+/** The fields of an operation that a case sets: its kind and more. */
+type Fields = { kind: string } & Record<string, unknown>;
+
+describe('a re-delivery after a lost result, by kind', () => {
+  const OTHER_KINDS: readonly (readonly [string, Fields])[] = [
+    ['a delete', { kind: 'delete' }],
+    ['a rename', { kind: 'rename', target_path: 'B.md' }],
+  ];
+
+  it.each(OTHER_KINDS)('%s whose source has expected_sha256 is a base mismatch', async (_name, fields) => {
+    const changed = operation({ operation_id: FIRST, path: 'A.md', base_hash: sha('alpha\n'), expected_sha256: sha('beta\n'), ...fields });
+
+    const { edge, obsidian } = await applyOne({ files: { 'A.md': 'beta\n' }, operation: changed });
+
+    expect(obsidian.calls).toEqual([]);
+    expect(results(edge)).toEqual([{ operation: FIRST, body: { outcome: 'base_mismatch', local_sha256: sha('beta\n') } }]);
+  });
+
+  const MOVED: readonly (readonly [string, Fields])[] = [
+    ['a rename with expected_sha256', { kind: 'rename', expected_sha256: sha('alpha\n') }],
+    ['a move without expected_sha256, by its base hash', { kind: 'move', expected_sha256: null }],
+  ];
+
+  it.each(MOVED)('%s whose source is gone and whose target has the bytes is applied', async (_name, fields) => {
+    const moved = operation({ operation_id: FIRST, path: 'A.md', target_path: 'Done/B.md', base_hash: sha('alpha\n'), ...fields });
+
+    const { edge, obsidian } = await applyOne({ files: { 'Done/B.md': 'alpha\n' }, operation: moved });
+
+    expect(obsidian.calls).toEqual([]);
+    expect(results(edge)).toEqual([{ operation: FIRST, body: { outcome: 'applied', sha256: sha('alpha\n') } }]);
+  });
+});
