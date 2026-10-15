@@ -56,20 +56,49 @@ async function refusal(app: VaultApp, operation: DeviceOperation): Promise<Devic
   }
   const local = await hashAt(app, operation.path);
   if (local !== operation.base_hash) {
-    return otherBase(operation, local);
+    return otherBase(app, { operation, local });
   }
   return Object.hasOwn(APPLY, operation.kind) ? null : { outcome: 'failed', code: UNSUPPORTED };
 }
 
+/** The kinds whose bytes land at `path`, and the kinds that move the file to `target_path`. */
+const WRITES_AT_PATH = new Set(['create', 'update', 'set_property']);
+const MOVES = new Set(['rename', 'move']);
+
+interface Seen {
+  readonly operation: DeviceOperation;
+  /** The hash of the file at `path`, or `null` when there is no file. */
+  readonly local: string | null;
+}
+
 /**
- * The result for a local file without the base hash. A file that already has the expected hash is a
- * write that the device applied before its result was lost: it is `applied`, not a conflict.
+ * The result for a local file without the base hash. A write that the device applied before its
+ * result was lost is `applied`, not a conflict (`earlierResult`).
  */
-function otherBase(operation: DeviceOperation, local: string | null): DeviceResult {
-  if (local !== null && local === operation.expected_sha256) {
-    return { outcome: 'applied', sha256: local };
+async function otherBase(app: VaultApp, seen: Seen): Promise<DeviceResult> {
+  const earlier = await earlierResult(app, seen);
+  return earlier === null ? { outcome: 'base_mismatch', local_sha256: seen.local } : { outcome: 'applied', sha256: earlier };
+}
+
+/**
+ * The hash of a write that the device already applied, or `null`: for a create, an update or a
+ * property, the file at `path` has `expected_sha256`; for a rename or a move, `path` has no file and
+ * the file at `target_path` has `expected_sha256`, or the base hash when notes names none.
+ */
+async function earlierResult(app: VaultApp, seen: Seen): Promise<string | null> {
+  const { operation, local } = seen;
+  if (WRITES_AT_PATH.has(operation.kind)) {
+    return local !== null && local === operation.expected_sha256 ? local : null;
   }
-  return { outcome: 'base_mismatch', local_sha256: local };
+  return local === null && MOVES.has(operation.kind) ? movedBefore(app, operation) : null;
+}
+
+async function movedBefore(app: VaultApp, operation: DeviceOperation): Promise<string | null> {
+  if (operation.target_path === null) {
+    return null;
+  }
+  const target = await hashAt(app, operation.target_path);
+  return target !== null && target === (operation.expected_sha256 ?? operation.base_hash) ? target : null;
 }
 
 /** Whether a path of the operation or its property key is one that the plugin never touches. */

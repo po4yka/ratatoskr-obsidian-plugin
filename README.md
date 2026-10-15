@@ -149,9 +149,11 @@ on. The plugin reads the queue and applies each write to the vault.
   file. It reports `base_mismatch` with the hash of the local file, and it sends the local file as
   a change. Ratatoskr shows a conflict, and you select the result in Ratatoskr. Ratatoskr names
   each path in Unicode NFC. macOS and iOS can keep a file name in NFD, so when the vault has no file
-  at the NFC path, the plugin looks for the NFD form of the path. When the local file already has
-  the SHA-256 that the write gives, the plugin applied it before and its result was lost: the
-  plugin reports `applied` with that hash and changes nothing.
+  at the NFC path, the plugin looks for the NFD form of the path. When the plugin applied a write
+  before and its result was lost, it reports `applied` and changes nothing: for a `create`, an
+  `update` or a `set_property`, the local file already has the SHA-256 that the write gives; for a
+  `rename` or a `move`, the old path has no file and the new path has that SHA-256 (or the base
+  hash, when Ratatoskr names none).
 - **How.** The plugin uses the vault API of Obsidian:
 
   | Write | Vault API |
