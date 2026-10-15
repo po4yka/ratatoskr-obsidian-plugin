@@ -30,6 +30,14 @@ const UNSAFE: readonly (readonly [string, Record<string, unknown>])[] = [
   ['a leading slash', { path: '/A.md' }],
   ['a rename into the configuration folder', { kind: 'rename', target_path: '.obsidian/A.md' }],
   ['a rename with a .. segment', { kind: 'move', target_path: '../A.md' }],
+  // Windows reads a backslash as a separator and strips trailing dots and spaces from a name.
+  ['a backslash into the configuration folder', { path: '.obsidian\\app.json' }],
+  ['a backslash .. segment', { path: '..\\A.md' }],
+  ['a C0 control character', { path: 'A\u0000.md' }],
+  ['a DEL character', { path: 'A\u007f.md' }],
+  ['the configuration folder with a trailing dot', { path: '.obsidian./app.json' }],
+  ['the configuration folder with a trailing space', { path: '.obsidian /x.md' }],
+  ['a rename whose target holds a backslash', { kind: 'rename', target_path: 'Notes\\B.md' }],
 ];
 
 describe('the paths of an operation', () => {
