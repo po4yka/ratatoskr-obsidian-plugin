@@ -1,10 +1,12 @@
 import type { Auth, EdgeClient } from '../api/edge';
 import { EdgeError } from '../api/http';
 import { NOTES_CODES, type DeviceOperation, type DeviceOperationPage, type DeviceResult } from '../api/notes';
-import { applyOperation, storedPath } from './apply-operation';
+import { applyOperation } from './apply-operation';
 import { factsOfBytes } from './hash';
 import type { DeviceSession } from './session';
+import { pathOfHash, rewriteTargets, rewritesToUpload, staleFiles } from './rewrites';
 import type { VaultApp, VaultEvent } from './types';
+import { storedPath } from './vault-lookup';
 
 /** What the device queue of one connection needs. */
 export interface QueueParts {
@@ -51,9 +53,10 @@ export class DeviceQueue {
   async #settle(operation: DeviceOperation, now: number): Promise<void> {
     const result = await applyOperation(this.#parts.app, { operation, content: () => this.#content(operation) });
     if (result.outcome === 'base_mismatch') {
-      // Notes needs the local file to raise the conflict.
-      const name = result.local_sha256 === null ? 'delete' : 'modify';
-      await this.#parts.changed({ name, path: operation.path, isFolder: false, at: now });
+      // Notes needs each local file that is newer than its base to raise the conflict.
+      for (const stale of await staleFiles(this.#parts.app, operation)) {
+        await this.#parts.changed({ name: stale.local === null ? 'delete' : 'modify', path: stale.path, isFolder: false, at: now });
+      }
     }
     await this.#report(operation, result);
   }
@@ -69,23 +72,35 @@ export class DeviceQueue {
   }
 
   /**
-   * Sends the result. When notes does not have the bytes of the hash from this connection
-   * (`notes.channel.bytes_missing`), the bytes are uploaded and the result is sent again once.
+   * Sends the result. A linking note that Obsidian wrote with another hash than notes expected is
+   * uploaded first. When notes does not have the bytes of a hash from this connection
+   * (`notes.channel.bytes_missing`, one hash for each answer), the file with that hash is uploaded
+   * and the result is sent again, at most once for each file that the result names.
    */
   async #report(operation: DeviceOperation, result: DeviceResult): Promise<void> {
-    const body = { operationId: operation.operation_id, result };
-    try {
-      await this.#call((edge, call) => edge.sendOperationResult({ ...call, body }));
-    } catch (error) {
-      const missing = missingHashes(error);
-      if (missing === undefined) {
-        throw error;
-      }
-      for (const sha256 of missing) {
-        await this.#parts.upload({ path: storedPath(this.#parts.app, operation.target_path ?? operation.path), sha256 });
-      }
-      await this.#call((edge, call) => edge.sendOperationResult({ ...call, body }));
+    for (const rewrite of rewritesToUpload(operation, result)) {
+      await this.#upload(rewrite);
     }
+    const body = { operationId: operation.operation_id, result };
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.#call((edge, call) => edge.sendOperationResult({ ...call, body }));
+        return;
+      } catch (error) {
+        const missing = missingHashes(error);
+        if (missing === undefined || attempt > rewriteTargets(operation).length) {
+          throw error;
+        }
+        for (const sha256 of missing) {
+          await this.#upload({ path: pathOfHash({ operation, result }, sha256), sha256 });
+        }
+      }
+    }
+  }
+
+  /** Uploads the file of `path`, from the path under which the vault keeps it. */
+  #upload(blob: { path: string; sha256: string }): Promise<void> {
+    return this.#parts.upload({ path: storedPath(this.#parts.app, blob.path), sha256: blob.sha256 });
   }
 
   #call<T>(run: (edge: EdgeClient, call: { auth: Auth; connectionId: string }) => Promise<T>): Promise<T> {

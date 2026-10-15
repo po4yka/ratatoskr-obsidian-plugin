@@ -167,6 +167,14 @@ on. The plugin reads the queue and applies each write to the vault.
   The plugin downloads the bytes of a write only after the base check, and it uses them only when
   they have the length and the SHA-256 that Ratatoskr named. Other bytes change nothing: the plugin
   reports `failed` with `notes.channel.refused`.
+- **A rename and its links.** Ratatoskr sends a rename or a move with the list of the notes that
+  link to the file, each with its base SHA-256 and the SHA-256 that Ratatoskr expects after the
+  link update. The plugin checks the path of each linking note. Before the rename, it compares each
+  linking note with its base, as for the renamed file: when one differs, it renames nothing,
+  reports `base_mismatch` for the whole rename, and sends each newer note as a change. After the
+  rename, Obsidian has updated the links, and the plugin reports each listed note in `rewrites`:
+  `applied` with its SHA-256 now, or `base_mismatch` when the note is gone. A note whose SHA-256 is
+  not the one that Ratatoskr expects is uploaded before the result.
 - **The result.** After a write, the plugin reports `applied` with the SHA-256 of the file (of the
   new path after a rename or a move; no hash after a delete). When Ratatoskr does not have those
   bytes, for example after a property change, or after another plugin changed the file on save, it

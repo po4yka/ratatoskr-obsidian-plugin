@@ -73,6 +73,18 @@ export interface BlobRef {
   readonly length_bytes: number;
 }
 
+/** A linking note of a rename, whose links Obsidian rewrites on the device. */
+export interface RewriteTarget {
+  readonly path: string;
+  readonly base_hash: string | null;
+  readonly expected_sha256: string | null;
+}
+
+/** What the device did with one linking note of a rename. Notes refuses unknown fields. */
+export type RewriteResult =
+  | { readonly path: string; readonly outcome: 'applied'; readonly sha256: string }
+  | { readonly path: string; readonly outcome: 'base_mismatch'; readonly local_sha256: string | null };
+
 /**
  * One operation of the device queue. A conflict resolution arrives as an `update`, or as a `create`
  * of a file that was deleted. `base_hash` is the hash that the local file must have (`null`: no file).
@@ -89,6 +101,8 @@ export interface DeviceOperation {
   readonly property_key: string | null;
   readonly property_change: 'set' | 'remove' | null;
   readonly expected_sha256: string | null;
+  /** The linking notes of a `rename` or a `move`, which notes delivers with it as one group. */
+  readonly rewrites?: readonly RewriteTarget[];
 }
 
 /** `GET /v1/notes/connections/{id}/device-operations?after=<cursor>`: at most 256, in delivery order. */
@@ -103,7 +117,7 @@ export interface DeviceOperationPage {
  * or at the target of a rename or a move; a delete has none. Notes refuses unknown fields.
  */
 export type DeviceResult =
-  | { readonly outcome: 'applied'; readonly sha256?: string }
+  | { readonly outcome: 'applied'; readonly sha256?: string; readonly rewrites?: readonly RewriteResult[] }
   | { readonly outcome: 'base_mismatch'; readonly local_sha256: string | null }
   | { readonly outcome: 'failed'; readonly code: string };
 

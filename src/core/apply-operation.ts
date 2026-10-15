@@ -1,6 +1,7 @@
 import type { DeviceOperation, DeviceResult } from '../api/notes';
-import { factsOfBytes } from './hash';
-import type { VaultApp, VaultFile } from './types';
+import { appliedWith, hasStaleRewrite, rewriteTargets } from './rewrites';
+import type { VaultApp } from './types';
+import { fileAt, hashAt } from './vault-lookup';
 
 /** The code of an operation that the vault API refused, for example a rename onto a file that exists. */
 const REFUSED = 'notes.channel.refused';
@@ -58,6 +59,10 @@ async function refusal(app: VaultApp, operation: DeviceOperation): Promise<Devic
   if (local !== operation.base_hash) {
     return otherBase(app, { operation, local });
   }
+  // A rename and its link rewrites are one group: one linking note with another base stops all.
+  if (MOVES.has(operation.kind) && (await hasStaleRewrite(app, operation))) {
+    return { outcome: 'base_mismatch', local_sha256: local };
+  }
   return Object.hasOwn(APPLY, operation.kind) ? null : { outcome: 'failed', code: UNSUPPORTED };
 }
 
@@ -77,7 +82,7 @@ interface Seen {
  */
 async function otherBase(app: VaultApp, seen: Seen): Promise<DeviceResult> {
   const earlier = await earlierResult(app, seen);
-  return earlier === null ? { outcome: 'base_mismatch', local_sha256: seen.local } : { outcome: 'applied', sha256: earlier };
+  return earlier === null ? { outcome: 'base_mismatch', local_sha256: seen.local } : appliedWith(app, { operation: seen.operation, sha256: earlier });
 }
 
 /**
@@ -101,11 +106,11 @@ async function movedBefore(app: VaultApp, operation: DeviceOperation): Promise<s
   return target !== null && target === (operation.expected_sha256 ?? operation.base_hash) ? target : null;
 }
 
-/** Whether a path of the operation or its property key is one that the plugin never touches. */
+/** Whether a path of the operation, of a linking note, or its property key is one that the plugin never touches. */
 function isUnsafeOperation(app: VaultApp, operation: DeviceOperation): boolean {
   const configDir = (app.vault.configDir ?? '.obsidian').toLowerCase();
-  const unsafe = (path: string | null): boolean => path !== null && isUnsafe(path, configDir);
-  return unsafe(operation.path) || unsafe(operation.target_path) || isUnsafeKey(operation.property_key);
+  const paths = [operation.path, operation.target_path, ...rewriteTargets(operation).map((target) => target.path)];
+  return paths.some((path) => path !== null && isUnsafe(path, configDir)) || isUnsafeKey(operation.property_key);
 }
 
 /** A frontmatter key that names the prototype of the object, which the write would change instead. */
@@ -158,7 +163,7 @@ async function applied(app: VaultApp, operation: DeviceOperation): Promise<Devic
     return { outcome: 'applied' };
   }
   const sha256 = await hashAt(app, operation.target_path ?? operation.path);
-  return sha256 === null ? { outcome: 'failed', code: REFUSED } : { outcome: 'applied', sha256 };
+  return sha256 === null ? { outcome: 'failed', code: REFUSED } : appliedWith(app, { operation, sha256 });
 }
 
 async function renameTo(app: VaultApp, operation: DeviceOperation): Promise<void> {
@@ -188,33 +193,6 @@ async function parentFolder(app: VaultApp, path: string): Promise<void> {
   if (folder !== '' && app.vault.getFolderByPath(folder) === null) {
     await app.vault.createFolder(folder);
   }
-}
-
-/** The SHA-256 of the file at `path`, or `null` when there is no file. */
-async function hashAt(app: VaultApp, path: string): Promise<string | null> {
-  const file = lookUp(app, path);
-  return file === null ? null : (await factsOfBytes(new Uint8Array(await app.vault.readBinary(file)))).sha256;
-}
-
-/**
- * The file at `path`. Notes names paths in NFC, and macOS and iOS can keep a file name in NFD, which
- * the vault API then knows only in NFD. So a path that is not found is looked up in NFD.
- */
-function lookUp(app: VaultApp, path: string): VaultFile | null {
-  return app.vault.getFileByPath(path) ?? app.vault.getFileByPath(path.normalize('NFD'));
-}
-
-/** The path under which the vault API keeps the file of `path`: the NFD form when only that exists. */
-export function storedPath(app: VaultApp, path: string): string {
-  return lookUp(app, path)?.path ?? path;
-}
-
-function fileAt(app: VaultApp, path: string): VaultFile {
-  const file = lookUp(app, path);
-  if (file === null) {
-    throw new Error('the file of the operation is not in the vault');
-  }
-  return file;
 }
 
 /** A copy in an `ArrayBuffer` of its own: a `Buffer` can be a view into a larger pool. */
