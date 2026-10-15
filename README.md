@@ -145,7 +145,9 @@ on. The plugin reads the queue and applies each write to the vault.
   no file). Before a write, the plugin compares that hash with the local file. When they differ,
   you changed the file on this device after Ratatoskr read it. Then the plugin does not change the
   file. It reports `base_mismatch` with the hash of the local file, and it sends the local file as
-  a change. Ratatoskr shows a conflict, and you select the result in Ratatoskr.
+  a change. Ratatoskr shows a conflict, and you select the result in Ratatoskr. Ratatoskr names
+  each path in Unicode NFC. macOS and iOS can keep a file name in NFD, so when the vault has no file
+  at the NFC path, the plugin looks for the NFD form of the path.
 - **How.** The plugin uses the vault API of Obsidian:
 
   | Write | Vault API |
